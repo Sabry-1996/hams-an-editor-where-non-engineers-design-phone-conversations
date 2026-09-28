@@ -1,0 +1,29 @@
+import type { MunsitVoice } from '../types/simulator';
+
+export const MUNSIT_API_BASE: string =
+  (import.meta.env.VITE_MUNSIT_API_BASE || '/api/munsit/api/v1').replace(/\/$/, '');
+
+export const MUNSIT_MODEL = 'faseeh-v1-preview';
+export const MUNSIT_TTS_ENDPOINT = `${MUNSIT_API_BASE}/text-to-speech/${MUNSIT_MODEL}`;
+export const MUNSIT_VOICES_ENDPOINT = `${MUNSIT_API_BASE}/voices`;
+
+export const MUNSIT_DEFAULT_VOICE_ID = '08XOzRjaaumxbHhcGOrWkJ7z';
+
+export const MUNSIT_DEV_API_KEY =
+  'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJrZXlfaWQiOiIzYjkzYzA3NS1kYzkwLTRhNDAtODk0My1iNmIyYjY4OWMzMjYiLCJpYXQiOjE3OTA1OTU2NjIsImV4cCI6MjEwNTk1NTY2Mn0.I1gg5vi04_Megnq-N4zOvYWvQkU7XGNkaVn-Ib4sOxs';
+
+export const MUNSIT_VOICE_SETTINGS = {
+  stability: 0.75,
+  speed: 1.0,
+  sample_rate: 48000,
+  dialect: 'auto',
+  code_switching: true
+} as const;
+
+export const MUNSIT_CURATED_VOICES: MunsitVoice[] = [
+  { id: MUNSIT_DEFAULT_VOICE_ID, label: 'هالة - صوت سعودي نسائي طبيعي (Hala · Najdi Female)', gender: 'female', languages: ['ar', 'en'], dialect: ['najdi'] },
+  { id: 'ybQaNl0nzt9TjN3Oh1zzyNgp', label: 'ريم - نجدية (Reem · Najdi Female)', gender: 'female', languages: ['ar', 'en'], dialect: ['najdi'] },
+  { id: 'IPK8qQ3F5NMiQLWFz1a83TG3', label: 'مها - نجدية (Maha · Najdi Female)', gender: 'female', languages: ['ar', 'en'], dialect: ['najdi'] },
+  { id: 'ar-najdi-male-10', label: 'عبدالله - نجدي (Abdullah · Najdi Male)', gender: 'male', languages: ['ar', 'en'], dialect: ['najdi'] },
+  { id: 'jEF6Tjsxg3rJhJijqItKNNey', label: 'تركي - نجدي (Turki · Najdi Male)', gender: 'male', languages: ['ar', 'en'], dialect: ['najdi'] }
+];
