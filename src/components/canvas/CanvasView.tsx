@@ -1,11 +1,11 @@
-import { useCallback } from 'react';
-import { ReactFlowProvider } from '@xyflow/react';
-import { AnimatePresence } from 'motion/react';
-import { useFlow } from '../../context/FlowContext';
-import { useSimulator } from '../../context/SimulatorContext';
-import type { EditorTab } from '../../types/flow';
-import { FlowCanvas } from './FlowCanvas';
-import { NodeInspector } from './NodeInspector';
+import { useCallback } from "react";
+import { ReactFlowProvider } from "@xyflow/react";
+import { AnimatePresence } from "motion/react";
+import { useFlow } from "../../context/FlowContext";
+import { useSimulator } from "../../context/SimulatorContext";
+import type { EditorTab } from "../../types/flow";
+import { FlowCanvas } from "./FlowCanvas";
+import { NodeInspector } from "./NodeInspector";
 
 interface CanvasViewProps {
   onNavigate: (tab: EditorTab) => void;
@@ -16,7 +16,7 @@ export default function CanvasView({ onNavigate }: CanvasViewProps) {
   const { selectedNode } = useFlow();
 
   const quickCall = useCallback(() => {
-    onNavigate('simulator');
+    onNavigate("simulator");
     simulator.start();
   }, [onNavigate, simulator]);
 
