@@ -34,7 +34,7 @@ export function ReplyComposer({ disabled, onSend }: ReplyComposerProps) {
         onChange={(e) => setDraft(e.target.value)}
         placeholder={disabled ? t("reply_disabled") : t("reply_placeholder")}
         disabled={disabled}
-        className="flex-1 bg-surface border border-line rounded-xl px-4 h-11 text-sm text-ink placeholder:text-ink-3 focus:border-brand focus:bg-white focus:outline-none focus:ring-2 focus:ring-brand/15 disabled:opacity-50"
+        className="h-11 flex-1 rounded-xl border border-line bg-white px-4 text-sm text-ink placeholder:text-ink-2 focus:border-brand focus:outline-none focus:ring-2 focus:ring-brand/15 disabled:bg-surface disabled:opacity-70"
         dir="auto"
       />
       <Button

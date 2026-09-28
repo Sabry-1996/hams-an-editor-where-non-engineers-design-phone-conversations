@@ -1,6 +1,6 @@
 import { useCallback } from "react";
 import { ReactFlowProvider } from "@xyflow/react";
-import { AnimatePresence } from "motion/react";
+import { AnimatePresence, MotionConfig } from "motion/react";
 import { useFlow } from "../../context/FlowContext";
 import { useSimulator } from "../../context/SimulatorContext";
 import type { EditorTab } from "../../types/flow";
@@ -25,9 +25,11 @@ export default function CanvasView({ onNavigate }: CanvasViewProps) {
       <ReactFlowProvider>
         <FlowCanvas onQuickCall={quickCall} />
       </ReactFlowProvider>
-      <AnimatePresence initial={false}>
-        {selectedNode && <NodeInspector key="inspector" node={selectedNode} />}
-      </AnimatePresence>
+      <MotionConfig reducedMotion="never">
+        <AnimatePresence initial={false}>
+          {selectedNode && <NodeInspector key="inspector" node={selectedNode} />}
+        </AnimatePresence>
+      </MotionConfig>
     </div>
   );
 }

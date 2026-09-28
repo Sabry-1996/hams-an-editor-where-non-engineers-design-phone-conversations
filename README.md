@@ -36,7 +36,7 @@ The app opens at http://localhost:5173.
 | `npm run test:watch` | Vitest in watch mode |
 | `npm run typecheck` | `tsc --noEmit` |
 
-Speech goes through the Vite proxy `/api/munsit` → `https://api.munsit.com`, so the browser never calls Munsit directly. Override the base with `VITE_MUNSIT_API_BASE`. The development key and voice list live in `src/config/munsit.ts`. The editor only speaks through Munsit cloud TTS.
+Speech goes through the Vite proxy `/api/munsit` → `https://api.munsit.com`, so the browser never calls Munsit directly. Override the base with `VITE_MUNSIT_API_BASE`. The development key and voice list live in `src/config/munsit.ts`. The editor only speaks through Munsit cloud TTS. API reference: [Munsit docs](https://docs.munsit.com/).
 
 ## Tools
 
@@ -51,6 +51,7 @@ Speech goes through the Vite proxy `/api/munsit` → `https://api.munsit.com`, s
 | lucide-react | Icons |
 | clsx | Class names on buttons |
 | Vitest | Tests for the graph and the `{{variable}}` template |
+| [Munsit](https://docs.munsit.com/) | Arabic voice API for the test call: synthesize with `faseeh` (`POST /text-to-speech/{model}`) and list voices (`GET /voices`) |
 
 ## Helpers
 

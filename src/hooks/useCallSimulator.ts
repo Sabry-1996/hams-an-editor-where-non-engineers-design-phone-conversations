@@ -15,7 +15,16 @@ interface UseCallSimulatorOptions {
   say: (key: MessageKey, params?: Record<string, string>) => string;
 }
 
+const SILENCE_MS = 10_000;
+
 const digitsOf = (text: string) => (text.match(/[0-9٠-٩]+/g) ?? []).join('').replace(/[٠-٩]/g, d => String('٠١٢٣٤٥٦٧٨٩'.indexOf(d)));
+
+/** A yes/no answer, including the short forms callers actually say. `لا` is checked first so it does not hide inside another word. */
+const yesNoOf = (text: string): 'yes' | 'no' | null => {
+  if (/لا|لأ|لاء|\bno\b|nope/i.test(text)) return 'no';
+  if (/نعم|أيوه|ايوه|ايه|إيه|اي|إي|تمام|حاضر|\byes\b|yeah|yep/i.test(text)) return 'yes';
+  return null;
+};
 
 export function useCallSimulator({ flow, speechLang, tts, voiceLabel, say }: UseCallSimulatorOptions) {
   const [active, setActive] = useState(false);
@@ -32,6 +41,10 @@ export function useCallSimulator({ flow, speechLang, tts, voiceLabel, say }: Use
   const activeRef = useRef(false);
   const variablesRef = useRef<SimVariables>({});
   const retriesRef = useRef<Record<string, number>>({});
+  const nodeIdRef = useRef('start');
+  const silenceTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const armSilenceRef = useRef<(nodeId: string) => void>(() => {});
+  const failAskRef = useRef<(nodeId: string, reason: 'silence' | 'unclear') => void>(() => {});
 
   const log = useCallback((entry: Omit<SimLogEntry, 'time'>) => {
     setLogs(prev => [...prev, { ...entry, time: nowTime() }]);
@@ -41,6 +54,13 @@ export function useCallSimulator({ flow, speechLang, tts, voiceLabel, say }: Use
     activeRef.current = value;
     setActive(value);
   };
+
+  const clearSilence = useCallback(() => {
+    if (silenceTimer.current != null) {
+      clearTimeout(silenceTimer.current);
+      silenceTimer.current = null;
+    }
+  }, []);
 
   const patchVariables = useCallback((updater: (prev: SimVariables) => SimVariables) => {
     variablesRef.current = updater(variablesRef.current);
@@ -54,6 +74,8 @@ export function useCallSimulator({ flow, speechLang, tts, voiceLabel, say }: Use
   };
 
   const go = useCallback(async (nodeId: string): Promise<void> => {
+    clearSilence();
+    nodeIdRef.current = nodeId;
     setCurrentNodeId(nodeId);
     const node = findNode(flowRef.current, nodeId);
     if (!node) return;
@@ -77,6 +99,7 @@ export function useCallSimulator({ flow, speechLang, tts, voiceLabel, say }: Use
         break;
       case 'ask':
         await speakLine(node.data.prompt);
+        if (activeRef.current && nodeIdRef.current === nodeId) armSilenceRef.current(nodeId);
         break;
       case 'tool': {
         const tool = node.data;
@@ -130,11 +153,52 @@ export function useCallSimulator({ flow, speechLang, tts, voiceLabel, say }: Use
         break;
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [log, patchVariables, tts]);
+  }, [log, patchVariables, tts, clearSilence]);
+
+  armSilenceRef.current = (nodeId: string) => {
+    clearSilence();
+    silenceTimer.current = setTimeout(() => {
+      silenceTimer.current = null;
+      if (!activeRef.current || nodeIdRef.current !== nodeId) return;
+      failAskRef.current(nodeId, 'silence');
+    }, SILENCE_MS);
+  };
+
+  failAskRef.current = (nodeId: string, reason: 'silence' | 'unclear') => {
+    const node = findNode(flowRef.current, nodeId);
+    if (!node || node.data.kind !== 'ask' || !activeRef.current) return;
+    const ask = node.data;
+    const used = (retriesRef.current[nodeId] ?? 0) + 1;
+    retriesRef.current = { ...retriesRef.current, [nodeId]: used };
+    setRetries(retriesRef.current);
+    const limit = Math.max(1, ask.maxRetries);
+    if (used >= limit) {
+      clearSilence();
+      log({ sender: 'system', text: sayRef.current('silence_end') });
+      const end = flowRef.current.nodes.find(n => n.data.kind === 'end');
+      if (end) setTimeout(() => { if (activeRef.current) go(end.id); }, 400);
+      else setActiveSync(false);
+      return;
+    }
+    log({
+      sender: 'system',
+      text: sayRef.current(reason === 'silence' ? 'silence_retry' : 'retry', { left: String(limit - used) })
+    });
+    const prompt = spoken(ask.prompt);
+    if (!prompt) {
+      armSilenceRef.current(nodeId);
+      return;
+    }
+    log({ sender: 'ai', text: prompt });
+    void tts.speak(prompt).then(() => {
+      if (activeRef.current && nodeIdRef.current === nodeId) armSilenceRef.current(nodeId);
+    });
+  };
 
   const start = useCallback(() => {
     const startNode = findStartNode(flowRef.current);
     if (!startNode) return;
+    clearSilence();
     tts.reset();
     setActiveSync(true);
     patchVariables(() => ({}));
@@ -143,17 +207,19 @@ export function useCallSimulator({ flow, speechLang, tts, voiceLabel, say }: Use
     setLogs([{ sender: 'system', text: sayRef.current('call_started', { voice: voiceLabel }), time: nowTime() }]);
     const first = outgoing(flowRef.current, startNode.id)[0];
     if (first) go(first.to);
-  }, [tts, voiceLabel, patchVariables, go, flowRef, sayRef]);
+  }, [tts, voiceLabel, patchVariables, go, flowRef, sayRef, clearSilence]);
 
   const stop = useCallback(() => {
+    clearSilence();
     tts.reset();
     setActiveSync(false);
     log({ sender: 'system', text: sayRef.current('call_stopped') });
-  }, [tts, log, sayRef]);
+  }, [tts, log, sayRef, clearSilence]);
 
   const sendUserReply = useCallback((text: string) => {
     const userText = text.trim();
     if (!userText || !activeRef.current) return;
+    clearSilence();
     log({ sender: 'user', text: userText });
     const node = findNode(flowRef.current, currentNodeId);
     if (!node || node.data.kind !== 'ask') {
@@ -170,29 +236,15 @@ export function useCallSimulator({ flow, speechLang, tts, voiceLabel, say }: Use
       ok = digits.length > 0;
       accepted = digits;
     } else if (ask.expect === 'yes_no') {
-      ok = /نعم|لا|اي|إي|yes|no/i.test(userText);
+      const answer = yesNoOf(userText);
+      ok = answer != null;
+      if (answer) accepted = answer;
     } else if (ask.expect === 'date') {
       ok = /\d{1,4}/.test(userText);
     }
 
     if (!ok) {
-      const used = (retriesRef.current[node.id] ?? 0) + 1;
-      retriesRef.current = { ...retriesRef.current, [node.id]: used };
-      setRetries(retriesRef.current);
-      if (used >= ask.maxRetries) {
-        log({ sender: 'system', text: sayRef.current('silence_transfer') });
-        const silence = outgoing(flowRef.current, node.id).find(e => e.branch === 'no_input');
-        const transfer = flowRef.current.nodes.find(n => n.data.kind === 'transfer');
-        const next = silence?.to ?? (ask.onNoInput === 'transfer' ? transfer?.id : undefined);
-        if (next) setTimeout(() => go(next), 400);
-        return;
-      }
-      log({ sender: 'system', text: sayRef.current('retry', { left: String(ask.maxRetries - used) }) });
-      const prompt = spoken(ask.prompt);
-      if (prompt) {
-        log({ sender: 'ai', text: prompt });
-        void tts.speak(prompt);
-      }
+      failAskRef.current(node.id, 'unclear');
       return;
     }
 
@@ -200,7 +252,7 @@ export function useCallSimulator({ flow, speechLang, tts, voiceLabel, say }: Use
     log({ sender: 'system', text: sayRef.current('saved_var', { name: ask.saveAs, value: accepted }) });
     const next = outgoing(flowRef.current, node.id)[0];
     if (next) setTimeout(() => go(next.to), 400);
-  }, [currentNodeId, log, patchVariables, go, flowRef, sayRef, tts]);
+  }, [currentNodeId, log, patchVariables, go, flowRef, sayRef, clearSilence]);
 
   return useMemo(() => ({
     active, currentNodeId, variables, logs, toolBehavior, retries, setToolBehavior, start, stop, sendUserReply,

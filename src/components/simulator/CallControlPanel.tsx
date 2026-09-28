@@ -56,7 +56,7 @@ export function CallControlPanel() {
           <Button
             size="md"
             onClick={simulator.stop}
-            className="w-full h-11 rounded-xl font-semibold bg-rose-600 text-white border-rose-600 hover:bg-rose-700"
+            className="w-full h-11 rounded-xl font-semibold bg-rose-200 text-rose-600 border-rose-600 hover:bg-rose-700"
           >
             <Square className="w-4 h-4" />
             <span>{t("stop_call")}</span>

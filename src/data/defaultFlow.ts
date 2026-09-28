@@ -41,7 +41,7 @@ export const DEFAULT_FLOW: Flow = {
       saveAs: 'procedure',
       expect: 'free_text',
       onNoInput: 'reprompt',
-      maxRetries: 1
+      maxRetries: 2
     }),
     node('tool_coverage', 1220, 80, 'Coverage API', {
       kind: 'tool',
@@ -51,15 +51,32 @@ export const DEFAULT_FLOW: Flow = {
     }),
     node('cond', 1520, 80, 'Covered?', {
       kind: 'condition',
-      rules: [{ variable: 'coverage_status', op: 'eq', value: 'covered', branch: 'say_yes' }],
+      rules: [{ variable: 'coverage_status', op: 'eq', value: 'covered', branch: 'ask_book' }],
       elseBranch: 'transfer'
     }),
-    node('say_yes', 1820, 0, 'Covered', {
-      kind: 'say',
-      text: tx(
+    node('ask_book', 1820, 0, 'Book a visit?', {
+      kind: 'ask',
+      prompt: tx(
         'الإجراء مغطى، وما يحتاج موافقة مسبقة. تبي أحجز لك موعد؟',
         'That procedure is covered, and no prior approval is needed. Shall I book a visit?'
-      )
+      ),
+      saveAs: 'book_visit',
+      expect: 'yes_no',
+      onNoInput: 'reprompt',
+      maxRetries: 2
+    }),
+    node('cond_book', 2120, 0, 'Book?', {
+      kind: 'condition',
+      rules: [{ variable: 'book_visit', op: 'eq', value: 'yes', branch: 'say_booked' }],
+      elseBranch: 'say_skip'
+    }),
+    node('say_booked', 2420, 0, 'Booked', {
+      kind: 'say',
+      text: tx('تمام، بحجز لك الموعد وبنرسل التأكيد.', 'Done. I will book the visit and send the confirmation.')
+    }),
+    node('say_skip', 2420, 280, 'No booking', {
+      kind: 'say',
+      text: tx('طيب، ما بنحجز الحين. إذا احتجت شي ثاني أنا هنا.', 'Alright, I will not book now. I am here if you need anything else.')
     }),
     node('transfer', 1820, 200, 'Human', {
       kind: 'transfer',
@@ -82,9 +99,13 @@ export const DEFAULT_FLOW: Flow = {
     edge('ask_procedure', 'tool_coverage'),
     edge('tool_coverage', 'cond', 'ok'),
     edge('tool_coverage', 'transfer', 'error'),
-    edge('cond', 'say_yes'),
+    edge('cond', 'ask_book'),
     edge('cond', 'transfer'),
-    edge('say_yes', 'end_ok'),
+    edge('ask_book', 'cond_book'),
+    edge('cond_book', 'say_booked'),
+    edge('cond_book', 'say_skip'),
+    edge('say_booked', 'end_ok'),
+    edge('say_skip', 'end_ok'),
     edge('transfer', 'end_transfer')
   ]
 };

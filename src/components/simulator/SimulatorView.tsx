@@ -7,8 +7,8 @@ export default function SimulatorView() {
   const { simulator } = useSimulator();
 
   return (
-    <div className="flex flex-1 bg-surface p-6 gap-6 overflow-y-auto">
-      <div className="w-96 flex flex-col gap-5">
+    <div className="flex min-h-0 flex-1 gap-6 overflow-hidden bg-surface p-6">
+      <div className="flex w-96 shrink-0 flex-col gap-5 overflow-y-auto">
         <CallControlPanel />
         <LiveStatePanel variables={simulator.variables} />
       </div>

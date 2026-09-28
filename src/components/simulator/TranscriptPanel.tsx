@@ -1,3 +1,4 @@
+import { useEffect, useRef } from 'react';
 import { PhoneCall } from 'lucide-react';
 import { useSimulator } from '../../context/SimulatorContext';
 import { useVoiceSettings } from '../../context/VoiceSettingsContext';
@@ -12,10 +13,16 @@ export function TranscriptPanel() {
   const { t } = useI18n();
   const { simulator, tts } = useSimulator();
   const { selectedVoiceId } = useVoiceSettings();
+  const scroller = useRef<HTMLDivElement>(null);
   const dotClass = tts.isSpeaking ? 'bg-brand animate-ping' : tts.status === 'error' ? 'bg-rose-500' : simulator.active ? 'bg-emerald-500' : 'bg-line';
 
+  useEffect(() => {
+    const el = scroller.current;
+    if (el) el.scrollTop = el.scrollHeight;
+  }, [simulator.logs.length]);
+
   return (
-    <div className={`${cardClass} flex-1 flex flex-col overflow-hidden`}>
+    <div className={`${cardClass} flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden`}>
       <div className="flex items-center justify-between px-6 py-4 border-b border-line">
         <div className="flex items-center gap-3">
           <div className={`w-2.5 h-2.5 rounded-full ${dotClass}`} />
@@ -36,7 +43,7 @@ export function TranscriptPanel() {
         </div>
       </div>
       <TtsIndicatorBanner status={tts.status} error={tts.error} isSpeaking={tts.isSpeaking} voiceId={selectedVoiceId} />
-      <div className="flex-1 p-6 overflow-y-auto space-y-4 bg-surface/50" aria-live="polite">
+      <div ref={scroller} className="min-h-0 flex-1 space-y-4 overflow-y-auto bg-surface/50 p-6" aria-live="polite">
         {simulator.logs.length === 0 ? (
           <div className="flex flex-col items-center justify-center h-full text-ink-3">
             <PhoneCall className="w-12 h-12 mb-3 opacity-30" />

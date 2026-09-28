@@ -8,7 +8,6 @@ import type {
   ExpectKind,
   FlowNode,
   LocalizedText,
-  NoInputAction,
 } from "../../types/flow";
 import type { MessageKey } from "../../i18n/messages";
 import { Button } from "../ui/Button";
@@ -68,12 +67,12 @@ export function NodeInspector({ node }: { node: FlowNode }) {
 
   return (
     <motion.aside
-      className="w-80 shrink-0 bg-white border-s border-line flex flex-col z-20 overflow-y-auto"
+      className="absolute inset-y-0 end-0 z-20 flex w-80 flex-col overflow-y-auto border-s border-line bg-white shadow-card"
       aria-label={t("inspector")}
-      initial={{ x: from, opacity: 0 }}
-      animate={{ x: 0, opacity: 1 }}
-      exit={{ x: from, opacity: 0 }}
-      transition={{ type: "spring", stiffness: 380, damping: 36, mass: 0.8 }}
+      initial={{ x: from }}
+      animate={{ x: 0 }}
+      exit={{ x: from }}
+      transition={{ duration: 0.32, ease: [0.22, 1, 0.36, 1] }}
     >
       <div key={node.id} className="content-in flex flex-col gap-4 p-5">
         <div className="flex items-center justify-between gap-2 border-b border-line pb-3">
@@ -189,22 +188,6 @@ export function NodeInspector({ node }: { node: FlowNode }) {
                 }))}
               />
             </Field>
-            <Field label={t("on_no_input")}>
-              <Select
-                ariaLabel={t("on_no_input")}
-                value={data.onNoInput}
-                onValueChange={(onNoInput) =>
-                  setNodeData(node.id, {
-                    ...data,
-                    onNoInput: onNoInput as NoInputAction,
-                  })
-                }
-                options={[
-                  { value: "reprompt", label: t("reprompt") },
-                  { value: "transfer", label: t("transfer_action") },
-                ]}
-              />
-            </Field>
             <Field label={t("max_retries")}>
               <input
                 type="number"
@@ -218,6 +201,7 @@ export function NodeInspector({ node }: { node: FlowNode }) {
                   })
                 }
               />
+              <p className="mt-1 text-[10px] leading-relaxed text-ink-3">{t("max_retries_hint")}</p>
             </Field>
           </>
         )}

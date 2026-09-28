@@ -29,6 +29,7 @@ function ToolButton({
   active,
   expanded,
   className,
+  side = "right",
 }: {
   label: string;
   icon: React.ReactNode;
@@ -37,9 +38,10 @@ function ToolButton({
   active?: boolean;
   expanded?: boolean;
   className?: string;
+  side?: "left" | "right";
 }) {
   return (
-    <Tooltip label={label}>
+    <Tooltip label={label} side={side}>
       <Button
         variant="ghost"
         size="icon"
@@ -71,7 +73,8 @@ export function BoardControls({
   paletteOpen,
   onPaletteOpenChange,
 }: BoardControlsProps) {
-  const { t } = useI18n();
+  const { t, dir } = useI18n();
+  const besideDetails = dir === "rtl";
   const { fitView } = useReactFlow();
   const {
     flow,
@@ -101,7 +104,7 @@ export function BoardControls({
   );
 
   return (
-    <Panel position="top-left" className="m-3!">
+    <Panel position={besideDetails ? "top-right" : "top-left"} className="m-3!">
       <div className="relative">
         <div
           role="toolbar"
@@ -116,6 +119,7 @@ export function BoardControls({
             active={paletteOpen}
             expanded={paletteOpen}
             className={paletteOpen ? "" : "text-brand"}
+            side={besideDetails ? "left" : "right"}
           />
           <Divider />
           <ToolButton
@@ -123,12 +127,14 @@ export function BoardControls({
             icon={<Undo2 className={ICON} />}
             onClick={undo}
             disabled={!canUndo}
+            side={besideDetails ? "left" : "right"}
           />
           <ToolButton
             label={t("redo")}
             icon={<Redo2 className={ICON} />}
             onClick={redo}
             disabled={!canRedo}
+            side={besideDetails ? "left" : "right"}
           />
           <Divider />
           <ToolButton
@@ -136,22 +142,26 @@ export function BoardControls({
             icon={<ArrowLeftRight className={ICON} />}
             onClick={() => setLayoutDirection("horizontal")}
             active={layoutDirection === "horizontal"}
+            side={besideDetails ? "left" : "right"}
           />
           <ToolButton
             label={t("layout_vertical")}
             icon={<ArrowDownUp className={ICON} />}
             onClick={() => setLayoutDirection("vertical")}
             active={layoutDirection === "vertical"}
+            side={besideDetails ? "left" : "right"}
           />
           <ToolButton
             label={t("tidy_up")}
             icon={<Wand2 className={ICON} />}
             onClick={tidyUp}
+            side={besideDetails ? "left" : "right"}
           />
           <ToolButton
             label={t("fit_view")}
             icon={<Maximize className={ICON} />}
             onClick={() => fitView({ duration: 300, padding: 0.2, maxZoom: 1 })}
+            side={besideDetails ? "left" : "right"}
           />
           <Divider />
           <ToolButton
@@ -160,12 +170,14 @@ export function BoardControls({
             onClick={deleteSelected}
             disabled={selectedIds.length === 0}
             className="text-rose-600 hover:bg-rose-50 hover:text-rose-700"
+            side={besideDetails ? "left" : "right"}
           />
           <ToolButton
             label={t("quick_call")}
             icon={<PhoneCall className={ICON} />}
             onClick={onQuickCall}
             className="text-emerald-600 hover:bg-emerald-50 hover:text-emerald-700"
+            side={besideDetails ? "left" : "right"}
           />
         </div>
         <MotionConfig reducedMotion="never">
@@ -173,10 +185,10 @@ export function BoardControls({
             {paletteOpen && (
               <motion.div
                 key="palette"
-                className="absolute top-0 left-full z-50 ms-3 origin-top-left"
-                initial={{ opacity: 0, x: -10, scale: 0.96 }}
+                className={`absolute top-0 z-50 origin-top ${besideDetails ? "right-full me-3 origin-right" : "left-full ms-3 origin-left"}`}
+                initial={{ opacity: 0, x: besideDetails ? 10 : -10, scale: 0.96 }}
                 animate={{ opacity: 1, x: 0, scale: 1 }}
-                exit={{ opacity: 0, x: -10, scale: 0.96 }}
+                exit={{ opacity: 0, x: besideDetails ? 10 : -10, scale: 0.96 }}
                 transition={{ duration: 0.28, ease: [0.22, 1, 0.36, 1] }}
               >
                 <StepPalette
