@@ -1,92 +1,130 @@
-import { useEffect } from 'react';
+import '@xyflow/react/dist/style.css';
+import { useCallback, useEffect, useMemo, useState } from 'react';
+import {
+  Background, BackgroundVariant, MarkerType, ReactFlow, useReactFlow, useUpdateNodeInternals,
+  type Connection, type Edge as RFEdge, type EdgeChange, type NodeChange, type OnDelete
+} from '@xyflow/react';
 import { useFlow } from '../../context/FlowContext';
 import { useSimulator } from '../../context/SimulatorContext';
-import { useCanvasInteraction } from '../../hooks/useCanvasInteraction';
+import { useAnimatedNodes } from '../../hooks/useAnimatedNodes';
 import { useI18n } from '../../i18n/I18nContext';
-import { CanvasControls } from './CanvasControls';
-import { ConnectionsLayer } from './ConnectionsLayer';
-import { FlowNodeCard } from './FlowNodeCard';
+import { BoardControls } from './BoardControls';
+import { StepNode, type StepRFNode } from './StepNode';
 
-const TYPING = new Set(['INPUT', 'TEXTAREA', 'SELECT']);
+const nodeTypes = { step: StepNode };
 
-export function FlowCanvas() {
+export function FlowCanvas({ onQuickCall }: { onQuickCall: () => void }) {
   const { t } = useI18n();
   const {
-    flow, diagnostics, selectedIds, selectNode, clearSelection, viewport, setPan,
-    zoomIn, zoomOut, resetViewport, moveNodeBy, commitPositions, nudgeSelection, connect, deleteSelected
+    flow, diagnostics, selectedIds, setSelection, clearSelection, revealRequest,
+    layoutDirection, layoutVersion, moveNodes, connect, deleteElements, reportNodeSize
   } = useFlow();
   const { simulator } = useSimulator();
-  const issues = new Set(diagnostics.map(item => item.nodeId).filter(Boolean));
+  const { fitView } = useReactFlow();
+  const updateNodeInternals = useUpdateNodeInternals();
+  const [selectedEdgeIds, setSelectedEdgeIds] = useState<string[]>([]);
 
-  const { connectingSourceId, cancelConnect, canvasHandlers, onNodeMouseDown, onPortClick } = useCanvasInteraction({
-    viewport,
-    setPan,
-    onNodeDrag: moveNodeBy,
-    onDragEnd: commitPositions,
-    onConnect: connect,
-    onSelectNode: selectNode,
-    onClearSelection: clearSelection
-  });
+  const issues = useMemo(() => new Set(diagnostics.map(d => d.nodeId).filter(Boolean)), [diagnostics]);
+  const activeId = simulator.active ? simulator.currentNodeId : null;
+
+  const rfNodes = useMemo<StepRFNode[]>(() => flow.nodes.map(node => ({
+    id: node.id,
+    type: 'step',
+    position: node.position,
+    selected: selectedIds.includes(node.id),
+    data: { node, direction: layoutDirection, active: node.id === activeId, hasIssue: issues.has(node.id) }
+  })), [flow.nodes, selectedIds, layoutDirection, activeId, issues]);
+
+  const rfEdges = useMemo<RFEdge[]>(() => flow.edges.map(edge => {
+    const source = flow.nodes.find(n => n.id === edge.from);
+    const color = edge.branch === 'error' ? '#fb7185' : '#38bdf8';
+    return {
+      id: edge.id,
+      source: edge.from,
+      target: edge.to,
+      sourceHandle: source?.data.kind === 'tool' ? (edge.branch ?? 'ok') : undefined,
+      label: edge.branch,
+      type: 'smoothstep',
+      selected: selectedEdgeIds.includes(edge.id),
+      style: { stroke: color, strokeWidth: 2 },
+      markerEnd: { type: MarkerType.ArrowClosed, color },
+      labelStyle: { fill: '#cbd5e1', fontSize: 11 },
+      labelBgStyle: { fill: '#0f172a' },
+      labelBgPadding: [4, 2] as [number, number],
+      labelBgBorderRadius: 4
+    };
+  }), [flow.edges, flow.nodes, selectedEdgeIds]);
+
+  const displayNodes = useAnimatedNodes(rfNodes, layoutVersion);
 
   useEffect(() => {
-    const onKey = (event: KeyboardEvent) => {
-      const tag = (event.target as HTMLElement | null)?.tagName;
-      if (tag && TYPING.has(tag)) return;
-      if (event.key === 'Escape') cancelConnect();
-      if (event.key === 'Delete' || event.key === 'Backspace') {
-        event.preventDefault();
-        deleteSelected();
-      }
-      const step = event.shiftKey ? 40 : 16;
-      if (event.key === 'ArrowLeft') { event.preventDefault(); nudgeSelection({ x: -step, y: 0 }); }
-      if (event.key === 'ArrowRight') { event.preventDefault(); nudgeSelection({ x: step, y: 0 }); }
-      if (event.key === 'ArrowUp') { event.preventDefault(); nudgeSelection({ x: 0, y: -step }); }
-      if (event.key === 'ArrowDown') { event.preventDefault(); nudgeSelection({ x: 0, y: step }); }
-    };
-    window.addEventListener('keydown', onKey);
-    return () => window.removeEventListener('keydown', onKey);
-  }, [cancelConnect, deleteSelected, nudgeSelection]);
+    updateNodeInternals(flow.nodes.map(n => n.id));
+  }, [layoutDirection, flow.nodes, updateNodeInternals]);
+
+  useEffect(() => {
+    if (revealRequest) fitView({ nodes: [{ id: revealRequest.id }], duration: 400, maxZoom: 1.2, padding: 0.6 });
+  }, [revealRequest, fitView]);
+
+  const onNodesChange = useCallback((changes: NodeChange<StepRFNode>[]) => {
+    const moves: Array<{ id: string; position: { x: number; y: number }; dragging?: boolean }> = [];
+    const selects: Array<{ id: string; selected: boolean }> = [];
+    changes.forEach(change => {
+      if (change.type === 'position' && change.position) moves.push({ id: change.id, position: change.position, dragging: change.dragging });
+      if (change.type === 'select') selects.push({ id: change.id, selected: change.selected });
+      if (change.type === 'dimensions' && change.dimensions) reportNodeSize(change.id, change.dimensions);
+    });
+    if (moves.length) moveNodes(moves, moves.some(m => !m.dragging));
+    if (selects.length) {
+      setSelection(prev => {
+        const next = new Set(prev);
+        selects.forEach(s => (s.selected ? next.add(s.id) : next.delete(s.id)));
+        return [...next];
+      });
+    }
+  }, [moveNodes, setSelection, reportNodeSize]);
+
+  const onEdgesChange = useCallback((changes: EdgeChange[]) => {
+    setSelectedEdgeIds(prev => {
+      const next = new Set(prev);
+      changes.forEach(change => {
+        if (change.type === 'select') change.selected ? next.add(change.id) : next.delete(change.id);
+        if (change.type === 'remove') next.delete(change.id);
+      });
+      return [...next];
+    });
+  }, []);
+
+  const onDelete: OnDelete = useCallback(({ nodes, edges }) => {
+    deleteElements(nodes.map(n => n.id), edges.map(e => e.id));
+  }, [deleteElements]);
+
+  const onConnect = useCallback((connection: Connection) => {
+    if (connection.source && connection.target) connect(connection.source, connection.target, connection.sourceHandle ?? undefined);
+  }, [connect]);
 
   return (
-    <div
-      id="canvas-container"
-      role="application"
-      aria-label={t('tab_canvas')}
-      dir="ltr"
-      tabIndex={0}
-      {...canvasHandlers}
-      className="flex-1 bg-[#090d16] relative overflow-hidden cursor-grab outline-none focus:ring-1 focus:ring-teal-700"
-      style={{ backgroundImage: 'radial-gradient(circle, #1e293b 1px, transparent 1px)', backgroundSize: '32px 32px' }}
-    >
-      <p className="absolute top-3 left-3 z-20 max-w-sm text-[11px] text-slate-400 bg-slate-950/80 border border-slate-800 rounded-lg px-3 py-2">
-        {t('canvas_dir')}
-      </p>
-      <div
-        className="absolute inset-0"
-        style={{ transform: `translate(${viewport.pan.x}px, ${viewport.pan.y}px) scale(${viewport.zoom})`, transformOrigin: '0 0' }}
+    <div className="flex-1 relative" dir="ltr" role="application" aria-label={t('tab_canvas')}>
+      <ReactFlow
+        nodes={displayNodes}
+        edges={rfEdges}
+        nodeTypes={nodeTypes}
+        onNodesChange={onNodesChange}
+        onEdgesChange={onEdgesChange}
+        onConnect={onConnect}
+        onDelete={onDelete}
+        onPaneClick={clearSelection}
+        colorMode="dark"
+        fitView
+        fitViewOptions={{ padding: 0.2, maxZoom: 1 }}
+        minZoom={0.3}
+        maxZoom={1.6}
+        deleteKeyCode={['Delete', 'Backspace']}
+        multiSelectionKeyCode={['Shift', 'Control', 'Meta']}
+        className="bg-[#090d16]"
       >
-        <ConnectionsLayer nodes={flow.nodes} edges={flow.edges} connectingSourceId={connectingSourceId} />
-        {flow.nodes.map(node => (
-          <FlowNodeCard
-            key={node.id}
-            node={node}
-            isSelected={selectedIds.includes(node.id)}
-            isActive={simulator.currentNodeId === node.id && simulator.active}
-            hasIssue={issues.has(node.id)}
-            isConnecting={connectingSourceId === node.id}
-            onSelect={selectNode}
-            onMouseDown={onNodeMouseDown}
-            onPortClick={onPortClick}
-          />
-        ))}
-      </div>
-      <CanvasControls zoom={viewport.zoom} onZoomIn={zoomIn} onZoomOut={zoomOut} onReset={resetViewport} />
-      {connectingSourceId && (
-        <div className="absolute top-16 left-1/2 -translate-x-1/2 bg-amber-500/20 border border-amber-500/50 text-amber-200 px-4 py-2 rounded-xl text-xs z-30 flex items-center gap-2">
-          <span>{t('connecting')}</span>
-          <button type="button" onClick={cancelConnect} className="underline font-bold">{t('cancel')}</button>
-        </div>
-      )}
+        <Background variant={BackgroundVariant.Dots} gap={32} size={1} color="#1e293b" />
+        <BoardControls onQuickCall={onQuickCall} />
+      </ReactFlow>
     </div>
   );
 }

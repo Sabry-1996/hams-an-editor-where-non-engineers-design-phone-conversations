@@ -1,5 +1,5 @@
 import React from 'react';
-import { Database, Layers, MessageSquare, Mic, Play, Share2, Square, Zap } from 'lucide-react';
+import { Database, MessageSquare, Mic, Play, Share2, Square, Zap } from 'lucide-react';
 import type { NodeKind } from '../../types/flow';
 
 interface NodeStyle {
@@ -18,12 +18,3 @@ export const NODE_STYLES: Record<NodeKind, NodeStyle> = {
   transfer: { headerClass: 'bg-rose-950/80 text-rose-300 border-rose-600', icon: <Share2 className={ICON} /> },
   end: { headerClass: 'bg-slate-800 text-slate-400 border-slate-600', icon: <Square className={ICON} /> }
 };
-
-export const FALLBACK_NODE_STYLE: NodeStyle = {
-  headerClass: 'bg-slate-800 text-slate-200 border-slate-700',
-  icon: <Layers className={ICON} />
-};
-
-export const NODE_WIDTH = 240;
-export const NODE_PORT_OFFSET_X = 240;
-export const NODE_PORT_OFFSET_Y = 28;

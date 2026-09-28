@@ -13,7 +13,7 @@ const DiagnosticsView = lazy(() => import('../diagnostics/DiagnosticsView'));
 export function AppShell() {
   const { t, dir } = useI18n();
   const [activeTab, setActiveTab] = useState<EditorTab>('canvas');
-  const { flow, diagnostics, canUndo, canRedo, undo, redo, loadFlow } = useFlow();
+  const { flow, diagnostics, loadFlow } = useFlow();
   const handleExport = useCallback(() => downloadFlowJson(flow), [flow]);
   const handleImportFile = useCallback(async (file: File) => {
     const parsed = parseFlowJson(await readFileAsText(file));
@@ -34,10 +34,6 @@ export function AppShell() {
         activeTab={activeTab}
         onTabChange={setActiveTab}
         diagnosticsCount={diagnostics.length}
-        canUndo={canUndo}
-        canRedo={canRedo}
-        onUndo={undo}
-        onRedo={redo}
         onExport={handleExport}
         onImportFile={handleImportFile}
       />

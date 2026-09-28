@@ -1,17 +1,15 @@
 import { useCallback } from 'react';
-import { useFlow } from '../../context/FlowContext';
+import { ReactFlowProvider } from '@xyflow/react';
 import { useSimulator } from '../../context/SimulatorContext';
 import type { EditorTab } from '../../types/flow';
 import { FlowCanvas } from './FlowCanvas';
 import { NodeInspector } from './NodeInspector';
-import { NodeToolbox } from './NodeToolbox';
 
 interface CanvasViewProps {
   onNavigate: (tab: EditorTab) => void;
 }
 
 export default function CanvasView({ onNavigate }: CanvasViewProps) {
-  const { addNode } = useFlow();
   const { simulator } = useSimulator();
 
   const quickCall = useCallback(() => {
@@ -21,8 +19,9 @@ export default function CanvasView({ onNavigate }: CanvasViewProps) {
 
   return (
     <div className="flex flex-1 relative overflow-hidden">
-      <NodeToolbox onAddNode={addNode} onQuickCall={quickCall} />
-      <FlowCanvas />
+      <ReactFlowProvider>
+        <FlowCanvas onQuickCall={quickCall} />
+      </ReactFlowProvider>
       <NodeInspector />
     </div>
   );

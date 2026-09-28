@@ -1,37 +1,58 @@
 import { useCallback, useState } from 'react';
 import type { Flow } from '../types/flow';
 
+export type FlowUpdater = Flow | ((current: Flow) => Flow);
+
+interface HistoryState {
+  past: Flow[];
+  present: Flow;
+  future: Flow[];
+  /** Uncommitted state shown while dragging. Undo restores `present`, never the draft. */
+  draft: Flow | null;
+}
+
+const resolve = (updater: FlowUpdater, current: Flow): Flow =>
+  typeof updater === 'function' ? updater(current) : updater;
+
 export function useFlowHistory(initial: Flow) {
-  const [flow, setFlow] = useState<Flow>(initial);
-  const [history, setHistory] = useState<Flow[]>([initial]);
-  const [index, setIndex] = useState(0);
+  const [state, setState] = useState<HistoryState>({ past: [], present: initial, future: [], draft: null });
 
-  const commit = useCallback((next: Flow) => {
-    setHistory(prev => {
-      if (prev[index] === next) return prev;
-      const trimmed = prev.slice(0, index + 1);
-      trimmed.push(next);
-      setIndex(trimmed.length - 1);
-      return trimmed;
+  const commit = useCallback((updater: FlowUpdater) => {
+    setState(s => {
+      const current = s.draft ?? s.present;
+      const next = resolve(updater, current);
+      if (next === current && !s.draft) return s;
+      return { past: [...s.past, s.present], present: next, future: [], draft: null };
     });
-    setFlow(next);
-  }, [index]);
+  }, []);
 
-  const replace = useCallback((next: Flow) => setFlow(next), []);
+  const replace = useCallback((updater: FlowUpdater) => {
+    setState(s => ({ ...s, draft: resolve(updater, s.draft ?? s.present) }));
+  }, []);
 
   const undo = useCallback(() => {
-    if (index <= 0) return;
-    const target = index - 1;
-    setIndex(target);
-    setFlow(history[target]);
-  }, [history, index]);
+    setState(s => {
+      if (s.past.length === 0) return s;
+      const previous = s.past[s.past.length - 1];
+      return { past: s.past.slice(0, -1), present: previous, future: [s.present, ...s.future], draft: null };
+    });
+  }, []);
 
   const redo = useCallback(() => {
-    if (index >= history.length - 1) return;
-    const target = index + 1;
-    setIndex(target);
-    setFlow(history[target]);
-  }, [history, index]);
+    setState(s => {
+      if (s.future.length === 0) return s;
+      const [next, ...rest] = s.future;
+      return { past: [...s.past, s.present], present: next, future: rest, draft: null };
+    });
+  }, []);
 
-  return { flow, commit, replace, undo, redo, canUndo: index > 0, canRedo: index < history.length - 1 };
+  return {
+    flow: state.draft ?? state.present,
+    commit,
+    replace,
+    undo,
+    redo,
+    canUndo: state.past.length > 0,
+    canRedo: state.future.length > 0
+  };
 }

@@ -11,11 +11,11 @@ interface DiagnosticsViewProps {
 
 export default function DiagnosticsView({ onNavigate }: DiagnosticsViewProps) {
   const { t } = useI18n();
-  const { diagnostics, selectNode } = useFlow();
+  const { diagnostics, revealNode } = useFlow();
   const goToNode = useCallback((nodeId: string) => {
-    selectNode(nodeId);
+    revealNode(nodeId);
     onNavigate('canvas');
-  }, [selectNode, onNavigate]);
+  }, [revealNode, onNavigate]);
 
   return (
     <div className="flex-1 bg-slate-950 p-8 overflow-y-auto">

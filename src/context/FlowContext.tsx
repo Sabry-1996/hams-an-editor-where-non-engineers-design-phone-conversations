@@ -1,135 +1,182 @@
-import React, { createContext, useCallback, useContext, useMemo, useState } from 'react';
+import React, { createContext, useCallback, useContext, useMemo, useRef, useState } from 'react';
 import { DEFAULT_FLOW } from '../data/defaultFlow';
 import { useFlowHistory } from '../hooks/useFlowHistory';
-import type { Viewport } from '../hooks/useCanvasInteraction';
 import type { Diagnostic, Flow, FlowNode, NodeData, NodeKind, Position } from '../types/flow';
+import { layoutFlow, type LayoutDirection, type NodeSize } from '../utils/autoLayout';
 import {
-  computeDiagnostics, connectNodes, createNode, disconnectEdge, findNode,
+  computeDiagnostics, connectNodes, createNode, findNode,
   getUpstreamVariables, outgoing, removeNodes, updateNode
 } from '../utils/flowGraph';
+
+export interface NodeMove { id: string; position: Position }
+export interface RevealRequest { id: string; version: number }
 
 interface FlowContextValue {
   flow: Flow;
   diagnostics: Diagnostic[];
   selectedIds: string[];
   selectedNode: FlowNode | undefined;
-  selectNode: (id: string, additive?: boolean) => void;
+  setSelection: (updater: (prev: string[]) => string[]) => void;
+  selectNode: (id: string) => void;
   clearSelection: () => void;
-  viewport: Viewport;
-  setPan: (pan: Position) => void;
-  zoomIn: () => void;
-  zoomOut: () => void;
-  resetViewport: () => void;
+  revealRequest: RevealRequest | null;
+  revealNode: (id: string) => void;
+  layoutDirection: LayoutDirection;
+  layoutVersion: number;
+  setLayoutDirection: (direction: LayoutDirection) => void;
+  tidyUp: () => void;
   canUndo: boolean;
   canRedo: boolean;
   undo: () => void;
   redo: () => void;
   loadFlow: (flow: Flow) => void;
   addNode: (kind: NodeKind) => void;
+  deleteElements: (nodeIds: string[], edgeIds: string[]) => void;
   deleteSelected: () => void;
   renameNode: (id: string, label: string) => void;
   setNodeData: (id: string, data: NodeData) => void;
-  moveNodeBy: (id: string, delta: Position) => void;
-  commitPositions: () => void;
-  nudgeSelection: (delta: Position) => void;
+  moveNodes: (moves: NodeMove[], final: boolean) => void;
   connect: (from: string, to: string, branch?: string) => void;
   disconnect: (edgeId: string) => void;
   upstreamVariablesOf: (nodeId: string) => string[];
+  reportNodeSize: (id: string, size: NodeSize) => void;
 }
 
 const FlowContext = createContext<FlowContextValue | null>(null);
-const ZOOM_MIN = 0.5;
-const ZOOM_MAX = 2;
-const ZOOM_STEP = 0.1;
+
+/** Which exit a new step should hang off when Reem adds it after the selected step. */
+function freeBranch(flow: Flow, source: FlowNode): string | undefined | false {
+  const outs = outgoing(flow, source.id);
+  if (source.data.kind === 'end') return false;
+  if (source.data.kind === 'tool') {
+    const taken = new Set(outs.map(e => e.branch));
+    if (!taken.has('ok')) return 'ok';
+    if (!taken.has('error')) return 'error';
+    return false;
+  }
+  if (source.data.kind === 'condition') return undefined;
+  return outs.length === 0 ? undefined : false;
+}
 
 export function FlowProvider({ children, initialFlow = DEFAULT_FLOW }: { children: React.ReactNode; initialFlow?: Flow }) {
-  const { flow, commit, replace, undo, redo, canUndo, canRedo } = useFlowHistory(initialFlow);
-  const [selectedIds, setSelectedIds] = useState<string[]>(['greet']);
-  const [viewport, setViewport] = useState<Viewport>({ pan: { x: 0, y: 0 }, zoom: 1 });
+  const [startFlow] = useState(() => layoutFlow(initialFlow, 'vertical'));
+  const { flow, commit, replace, undo, redo, canUndo, canRedo } = useFlowHistory(startFlow);
+  const [selectedIds, setSelectedIds] = useState<string[]>([]);
+  const [revealRequest, setRevealRequest] = useState<RevealRequest | null>(null);
+  const [layoutDirection, setDirection] = useState<LayoutDirection>('vertical');
+  const [layoutVersion, setLayoutVersion] = useState(0);
+  const sizesRef = useRef<Map<string, NodeSize>>(new Map());
 
   const diagnostics = useMemo(() => computeDiagnostics(flow), [flow]);
   const selectedNode = selectedIds.length === 1 ? findNode(flow, selectedIds[0]) : undefined;
 
-  const setPan = useCallback((pan: Position) => setViewport(v => ({ ...v, pan })), []);
-  const zoomIn = useCallback(() => setViewport(v => ({ ...v, zoom: Math.min(v.zoom + ZOOM_STEP, ZOOM_MAX) })), []);
-  const zoomOut = useCallback(() => setViewport(v => ({ ...v, zoom: Math.max(v.zoom - ZOOM_STEP, ZOOM_MIN) })), []);
-  const resetViewport = useCallback(() => setViewport(v => ({ ...v, pan: { x: 0, y: 0 } })), []);
+  const setSelection = useCallback((updater: (prev: string[]) => string[]) => setSelectedIds(updater), []);
+  const selectNode = useCallback((id: string) => setSelectedIds([id]), []);
+  const clearSelection = useCallback(() => setSelectedIds([]), []);
+  const revealNode = useCallback((id: string) => {
+    setSelectedIds([id]);
+    setRevealRequest(prev => ({ id, version: (prev?.version ?? 0) + 1 }));
+  }, []);
+
+  const reportNodeSize = useCallback((id: string, size: NodeSize) => { sizesRef.current.set(id, size); }, []);
+
   const loadFlow = useCallback((next: Flow) => {
     commit(next);
     setSelectedIds([]);
   }, [commit]);
 
-  const selectNode = useCallback((id: string, additive = false) => {
-    setSelectedIds(current => {
-      if (!additive) return [id];
-      return current.includes(id) ? current.filter(item => item !== id) : [...current, id];
-    });
-  }, []);
+  const relayout = useCallback((direction: LayoutDirection) => {
+    commit(current => layoutFlow(current, direction, sizesRef.current));
+    setLayoutVersion(v => v + 1);
+  }, [commit]);
 
-  const clearSelection = useCallback(() => setSelectedIds([]), []);
+  const setLayoutDirection = useCallback((direction: LayoutDirection) => {
+    setDirection(direction);
+    relayout(direction);
+  }, [relayout]);
+
+  const tidyUp = useCallback(() => relayout(layoutDirection), [relayout, layoutDirection]);
 
   const addNode = useCallback((kind: NodeKind) => {
-    const node = createNode(kind, {
-      x: -viewport.pan.x / viewport.zoom + 280,
-      y: -viewport.pan.y / viewport.zoom + 180
+    const id = `node_${Date.now().toString(36)}`;
+    commit(current => {
+      const anchor = selectedIds.length === 1 ? findNode(current, selectedIds[0]) : current.nodes[current.nodes.length - 1];
+      const base = anchor?.position ?? { x: 40, y: 40 };
+      const offset = layoutDirection === 'horizontal' ? { x: 320, y: 0 } : { x: 0, y: 200 };
+      const node = { ...createNode(kind, { x: base.x + offset.x, y: base.y + offset.y }), id };
+      let next: Flow = { ...current, nodes: [...current.nodes, node] };
+      if (anchor) {
+        const branch = freeBranch(next, anchor);
+        if (branch !== false) next = connectNodes(next, anchor.id, id, branch);
+      }
+      return layoutFlow(next, layoutDirection, sizesRef.current);
     });
-    commit({ ...flow, nodes: [...flow.nodes, node] });
-    setSelectedIds([node.id]);
-  }, [flow, commit, viewport]);
+    setSelectedIds([id]);
+    setLayoutVersion(v => v + 1);
+  }, [commit, selectedIds, layoutDirection]);
 
-  const deleteSelected = useCallback(() => {
-    if (selectedIds.length === 0) return;
-    commit(removeNodes(flow, selectedIds));
-    setSelectedIds([]);
-  }, [flow, commit, selectedIds]);
+  const deleteElements = useCallback((nodeIds: string[], edgeIds: string[]) => {
+    if (nodeIds.length === 0 && edgeIds.length === 0) return;
+    const dropNodes = new Set(nodeIds);
+    const dropEdges = new Set(edgeIds);
+    commit(current => {
+      const next = removeNodes(current, nodeIds);
+      return { ...next, edges: next.edges.filter(e => !dropEdges.has(e.id)) };
+    });
+    setSelectedIds(prev => prev.filter(id => !dropNodes.has(id)));
+  }, [commit]);
+
+  const deleteSelected = useCallback(() => deleteElements(selectedIds, []), [deleteElements, selectedIds]);
 
   const renameNode = useCallback((id: string, label: string) => {
-    commit(updateNode(flow, id, n => ({ ...n, label })));
-  }, [flow, commit]);
+    commit(current => updateNode(current, id, n => ({ ...n, label })));
+  }, [commit]);
 
   const setNodeData = useCallback((id: string, data: NodeData) => {
-    commit(updateNode(flow, id, n => ({ ...n, data })));
-  }, [flow, commit]);
+    commit(current => updateNode(current, id, n => ({ ...n, data })));
+  }, [commit]);
 
-  const moveNodeBy = useCallback((id: string, delta: Position) => {
-    replace(updateNode(flow, id, n => ({ ...n, position: { x: n.position.x + delta.x, y: n.position.y + delta.y } })));
-  }, [flow, replace]);
-
-  const commitPositions = useCallback(() => commit(flow), [flow, commit]);
-
-  const nudgeSelection = useCallback((delta: Position) => {
-    if (selectedIds.length === 0) return;
-    const ids = new Set(selectedIds);
-    commit({
-      ...flow,
-      nodes: flow.nodes.map(n => ids.has(n.id) ? { ...n, position: { x: n.position.x + delta.x, y: n.position.y + delta.y } } : n)
+  const moveNodes = useCallback((moves: NodeMove[], final: boolean) => {
+    const byId = new Map(moves.map(m => [m.id, m.position]));
+    const apply = (current: Flow): Flow => ({
+      ...current,
+      nodes: current.nodes.map(n => {
+        const position = byId.get(n.id);
+        return position ? { ...n, position } : n;
+      })
     });
-  }, [flow, commit, selectedIds]);
+    if (final) commit(apply);
+    else replace(apply);
+  }, [commit, replace]);
 
   const connect = useCallback((from: string, to: string, branch?: string) => {
-    const source = findNode(flow, from);
-    let named = branch;
-    if (!named && source?.data.kind === 'tool') {
-      const taken = new Set(outgoing(flow, from).map(edge => edge.branch));
-      named = taken.has('ok') ? 'error' : 'ok';
-    }
-    const next = connectNodes(flow, from, to, named);
-    if (next !== flow) commit(next);
-  }, [flow, commit]);
+    commit(current => {
+      const source = findNode(current, from);
+      let named = branch;
+      if (!named && source?.data.kind === 'tool') {
+        const taken = new Set(outgoing(current, from).map(edge => edge.branch));
+        named = taken.has('ok') ? 'error' : 'ok';
+      }
+      return connectNodes(current, from, to, named);
+    });
+  }, [commit]);
 
-  const disconnect = useCallback((edgeId: string) => commit(disconnectEdge(flow, edgeId)), [flow, commit]);
+  const disconnect = useCallback((edgeId: string) => {
+    commit(current => ({ ...current, edges: current.edges.filter(e => e.id !== edgeId) }));
+  }, [commit]);
+
   const upstreamVariablesOf = useCallback((nodeId: string) => getUpstreamVariables(flow, nodeId), [flow]);
 
   const value = useMemo<FlowContextValue>(() => ({
-    flow, diagnostics, selectedIds, selectedNode, selectNode, clearSelection,
-    viewport, setPan, zoomIn, zoomOut, resetViewport, canUndo, canRedo, undo, redo,
-    loadFlow, addNode, deleteSelected, renameNode, setNodeData, moveNodeBy, commitPositions, nudgeSelection,
-    connect, disconnect, upstreamVariablesOf
+    flow, diagnostics, selectedIds, selectedNode, setSelection, selectNode, clearSelection,
+    revealRequest, revealNode, layoutDirection, layoutVersion, setLayoutDirection, tidyUp,
+    canUndo, canRedo, undo, redo, loadFlow, addNode, deleteElements, deleteSelected,
+    renameNode, setNodeData, moveNodes, connect, disconnect, upstreamVariablesOf, reportNodeSize
   }), [
-    flow, diagnostics, selectedIds, selectedNode, selectNode, clearSelection,
-    viewport, setPan, zoomIn, zoomOut, resetViewport, canUndo, canRedo, undo, redo,
-    loadFlow, addNode, deleteSelected, renameNode, setNodeData, moveNodeBy, commitPositions, nudgeSelection,
-    connect, disconnect, upstreamVariablesOf
+    flow, diagnostics, selectedIds, selectedNode, setSelection, selectNode, clearSelection,
+    revealRequest, revealNode, layoutDirection, layoutVersion, setLayoutDirection, tidyUp,
+    canUndo, canRedo, undo, redo, loadFlow, addNode, deleteElements, deleteSelected,
+    renameNode, setNodeData, moveNodes, connect, disconnect, upstreamVariablesOf, reportNodeSize
   ]);
 
   return <FlowContext.Provider value={value}>{children}</FlowContext.Provider>;
