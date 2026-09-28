@@ -11,11 +11,15 @@ interface UseCanvasInteractionOptions {
   viewport: Viewport;
   setPan: (pan: Position) => void;
   onNodeDrag: (nodeId: string, delta: Position) => void;
+  onDragEnd: () => void;
   onConnect: (sourceId: string, targetId: string) => void;
-  onSelectNode: (nodeId: string) => void;
+  onSelectNode: (nodeId: string, additive?: boolean) => void;
+  onClearSelection: () => void;
 }
 
-export function useCanvasInteraction({ viewport, setPan, onNodeDrag, onConnect, onSelectNode }: UseCanvasInteractionOptions) {
+export function useCanvasInteraction({
+  viewport, setPan, onNodeDrag, onDragEnd, onConnect, onSelectNode, onClearSelection
+}: UseCanvasInteractionOptions) {
   const [isPanning, setIsPanning] = useState(false);
   const [dragStart, setDragStart] = useState<Position>({ x: 0, y: 0 });
   const [draggingNodeId, setDraggingNodeId] = useState<string | null>(null);
@@ -24,10 +28,11 @@ export function useCanvasInteraction({ viewport, setPan, onNodeDrag, onConnect, 
   const onCanvasMouseDown = useCallback((e: React.MouseEvent) => {
     const target = e.target as HTMLElement;
     if (target.tagName === 'svg' || target.id === 'canvas-container') {
+      onClearSelection();
       setIsPanning(true);
       setDragStart({ x: e.clientX - viewport.pan.x, y: e.clientY - viewport.pan.y });
     }
-  }, [viewport.pan]);
+  }, [viewport.pan, onClearSelection]);
 
   const onCanvasMouseMove = useCallback((e: React.MouseEvent) => {
     if (isPanning) {
@@ -42,13 +47,14 @@ export function useCanvasInteraction({ viewport, setPan, onNodeDrag, onConnect, 
   }, [isPanning, draggingNodeId, dragStart, viewport.zoom, setPan, onNodeDrag]);
 
   const onCanvasMouseUp = useCallback(() => {
+    if (draggingNodeId) onDragEnd();
     setIsPanning(false);
     setDraggingNodeId(null);
-  }, []);
+  }, [draggingNodeId, onDragEnd]);
 
   const onNodeMouseDown = useCallback((nodeId: string, e: React.MouseEvent) => {
     e.stopPropagation();
-    onSelectNode(nodeId);
+    onSelectNode(nodeId, e.shiftKey);
     setDraggingNodeId(nodeId);
     setDragStart({ x: e.clientX, y: e.clientY });
   }, [onSelectNode]);

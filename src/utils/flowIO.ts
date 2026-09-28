@@ -1,21 +1,32 @@
-import type { FlowSchema } from '../types/flow';
+import type { Flow } from '../types/flow';
 
-export const isFlowSchema = (value: unknown): value is FlowSchema =>
-  typeof value === 'object' &&
-  value !== null &&
-  typeof (value as FlowSchema).version === 'string' &&
-  Array.isArray((value as FlowSchema).nodes);
+export type ImportFailure = 'invalid_json' | 'unknown_schema' | 'invalid_shape';
 
-export function parseFlowJson(json: string): FlowSchema | null {
+export type ImportResult =
+  | { ok: true; flow: Flow }
+  | { ok: false; reason: ImportFailure; schemaVersion?: unknown };
+
+const isFlow = (value: unknown): value is Flow => {
+  if (typeof value !== 'object' || value === null) return false;
+  const flow = value as Flow;
+  return flow.schemaVersion === 1 && typeof flow.id === 'string' && typeof flow.name === 'string' && Array.isArray(flow.nodes) && Array.isArray(flow.edges);
+};
+
+export function parseFlowJson(json: string): ImportResult {
+  let parsed: unknown;
   try {
-    const parsed = JSON.parse(json);
-    return isFlowSchema(parsed) ? parsed : null;
+    parsed = JSON.parse(json);
   } catch {
-    return null;
+    return { ok: false, reason: 'invalid_json' };
   }
+  if (typeof parsed !== 'object' || parsed === null) return { ok: false, reason: 'invalid_shape' };
+  const version = (parsed as { schemaVersion?: unknown }).schemaVersion;
+  if (version !== 1) return { ok: false, reason: 'unknown_schema', schemaVersion: version };
+  if (!isFlow(parsed)) return { ok: false, reason: 'invalid_shape' };
+  return { ok: true, flow: parsed };
 }
 
-export function downloadFlowJson(flow: FlowSchema, filename = `shifacare_voice_flow_${Date.now()}.json`) {
+export function downloadFlowJson(flow: Flow, filename = `shifacare_flow_${Date.now()}.json`) {
   const dataStr = 'data:text/json;charset=utf-8,' + encodeURIComponent(JSON.stringify(flow, null, 2));
   const anchor = document.createElement('a');
   anchor.setAttribute('href', dataStr);

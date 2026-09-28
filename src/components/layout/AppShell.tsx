@@ -1,5 +1,6 @@
 import { Suspense, lazy, useCallback, useState } from 'react';
 import { useFlow } from '../../context/FlowContext';
+import { useI18n } from '../../i18n/I18nContext';
 import type { EditorTab } from '../../types/flow';
 import { downloadFlowJson, parseFlowJson, readFileAsText } from '../../utils/flowIO';
 import { LoadingView } from '../ui/LoadingView';
@@ -10,21 +11,25 @@ const SimulatorView = lazy(() => import('../simulator/SimulatorView'));
 const DiagnosticsView = lazy(() => import('../diagnostics/DiagnosticsView'));
 
 export function AppShell() {
+  const { t, dir } = useI18n();
   const [activeTab, setActiveTab] = useState<EditorTab>('canvas');
   const { flow, diagnostics, canUndo, canRedo, undo, redo, loadFlow } = useFlow();
   const handleExport = useCallback(() => downloadFlowJson(flow), [flow]);
   const handleImportFile = useCallback(async (file: File) => {
-    try {
-      const parsed = parseFlowJson(await readFileAsText(file));
-      if (parsed) loadFlow(parsed);
-      else alert('ملف غير صالح: يفتقر إلى هيكل التدفق الصحيح.');
-    } catch {
-      alert('خطأ في قراءة ملف JSON.');
+    const parsed = parseFlowJson(await readFileAsText(file));
+    if (parsed.ok) {
+      loadFlow(parsed.flow);
+      return;
     }
-  }, [loadFlow]);
+    if (parsed.reason === 'unknown_schema') {
+      alert(t('import_unknown_schema', { version: String(parsed.schemaVersion ?? '?') }));
+      return;
+    }
+    alert(t(parsed.reason === 'invalid_json' ? 'import_invalid_json' : 'import_invalid_shape'));
+  }, [loadFlow, t]);
 
   return (
-    <div className="flex flex-col h-screen w-screen overflow-hidden bg-slate-950 text-slate-100 font-sans" dir="rtl">
+    <div className="flex flex-col h-screen w-screen overflow-hidden bg-slate-950 text-slate-100 font-sans" dir={dir}>
       <AppHeader
         activeTab={activeTab}
         onTabChange={setActiveTab}

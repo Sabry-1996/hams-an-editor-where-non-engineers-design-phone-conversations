@@ -1,13 +1,14 @@
 import { useCallback, useState } from 'react';
-import type { FlowSchema } from '../types/flow';
+import type { Flow } from '../types/flow';
 
-export function useFlowHistory(initial: FlowSchema) {
-  const [flow, setFlow] = useState<FlowSchema>(initial);
-  const [history, setHistory] = useState<FlowSchema[]>([initial]);
+export function useFlowHistory(initial: Flow) {
+  const [flow, setFlow] = useState<Flow>(initial);
+  const [history, setHistory] = useState<Flow[]>([initial]);
   const [index, setIndex] = useState(0);
 
-  const commit = useCallback((next: FlowSchema) => {
+  const commit = useCallback((next: Flow) => {
     setHistory(prev => {
+      if (prev[index] === next) return prev;
       const trimmed = prev.slice(0, index + 1);
       trimmed.push(next);
       setIndex(trimmed.length - 1);
@@ -16,7 +17,7 @@ export function useFlowHistory(initial: FlowSchema) {
     setFlow(next);
   }, [index]);
 
-  const replace = useCallback((next: FlowSchema) => setFlow(next), []);
+  const replace = useCallback((next: Flow) => setFlow(next), []);
 
   const undo = useCallback(() => {
     if (index <= 0) return;

@@ -2,18 +2,19 @@ import React, { createContext, useCallback, useContext, useMemo, useState } from
 import { DEFAULT_FLOW } from '../data/defaultFlow';
 import { useFlowHistory } from '../hooks/useFlowHistory';
 import type { Viewport } from '../hooks/useCanvasInteraction';
-import type { Diagnostic, FlowSchema, NodeData, NodeType, Position } from '../types/flow';
+import type { Diagnostic, Flow, FlowNode, NodeData, NodeKind, Position } from '../types/flow';
 import {
-  computeDiagnostics, connectNodes, createNode, disconnectNodes, findNode,
-  getUpstreamVariables, removeNode, updateNode
+  computeDiagnostics, connectNodes, createNode, disconnectEdge, findNode,
+  getUpstreamVariables, outgoing, removeNodes, updateNode
 } from '../utils/flowGraph';
 
 interface FlowContextValue {
-  flow: FlowSchema;
+  flow: Flow;
   diagnostics: Diagnostic[];
-  selectedNodeId: string | null;
-  selectedNode: NodeData | undefined;
-  selectNode: (id: string | null) => void;
+  selectedIds: string[];
+  selectedNode: FlowNode | undefined;
+  selectNode: (id: string, additive?: boolean) => void;
+  clearSelection: () => void;
   viewport: Viewport;
   setPan: (pan: Position) => void;
   zoomIn: () => void;
@@ -23,13 +24,16 @@ interface FlowContextValue {
   canRedo: boolean;
   undo: () => void;
   redo: () => void;
-  loadFlow: (flow: FlowSchema) => void;
-  addNode: (type: NodeType) => void;
-  deleteNode: (id: string) => void;
-  patchNode: (id: string, patch: Partial<Omit<NodeData, 'id' | 'config'>> & { config?: Partial<NodeData['config']> }) => void;
+  loadFlow: (flow: Flow) => void;
+  addNode: (kind: NodeKind) => void;
+  deleteSelected: () => void;
+  renameNode: (id: string, label: string) => void;
+  setNodeData: (id: string, data: NodeData) => void;
   moveNodeBy: (id: string, delta: Position) => void;
-  connect: (sourceId: string, targetId: string) => void;
-  disconnect: (sourceId: string, targetId: string) => void;
+  commitPositions: () => void;
+  nudgeSelection: (delta: Position) => void;
+  connect: (from: string, to: string, branch?: string) => void;
+  disconnect: (edgeId: string) => void;
   upstreamVariablesOf: (nodeId: string) => string[];
 }
 
@@ -38,56 +42,94 @@ const ZOOM_MIN = 0.5;
 const ZOOM_MAX = 2;
 const ZOOM_STEP = 0.1;
 
-export function FlowProvider({ children, initialFlow = DEFAULT_FLOW }: { children: React.ReactNode; initialFlow?: FlowSchema }) {
+export function FlowProvider({ children, initialFlow = DEFAULT_FLOW }: { children: React.ReactNode; initialFlow?: Flow }) {
   const { flow, commit, replace, undo, redo, canUndo, canRedo } = useFlowHistory(initialFlow);
-  const [selectedNodeId, setSelectedNodeId] = useState<string | null>('node_greeting');
+  const [selectedIds, setSelectedIds] = useState<string[]>(['greet']);
   const [viewport, setViewport] = useState<Viewport>({ pan: { x: 0, y: 0 }, zoom: 1 });
+
   const diagnostics = useMemo(() => computeDiagnostics(flow), [flow]);
-  const selectedNode = useMemo(() => findNode(flow, selectedNodeId), [flow, selectedNodeId]);
+  const selectedNode = selectedIds.length === 1 ? findNode(flow, selectedIds[0]) : undefined;
 
   const setPan = useCallback((pan: Position) => setViewport(v => ({ ...v, pan })), []);
   const zoomIn = useCallback(() => setViewport(v => ({ ...v, zoom: Math.min(v.zoom + ZOOM_STEP, ZOOM_MAX) })), []);
   const zoomOut = useCallback(() => setViewport(v => ({ ...v, zoom: Math.max(v.zoom - ZOOM_STEP, ZOOM_MIN) })), []);
   const resetViewport = useCallback(() => setViewport(v => ({ ...v, pan: { x: 0, y: 0 } })), []);
-  const loadFlow = useCallback((next: FlowSchema) => commit(next), [commit]);
+  const loadFlow = useCallback((next: Flow) => {
+    commit(next);
+    setSelectedIds([]);
+  }, [commit]);
 
-  const addNode = useCallback((type: NodeType) => {
-    const node = createNode(type, { x: -viewport.pan.x + 400 + Math.random() * 50, y: -viewport.pan.y + 300 + Math.random() * 50 });
+  const selectNode = useCallback((id: string, additive = false) => {
+    setSelectedIds(current => {
+      if (!additive) return [id];
+      return current.includes(id) ? current.filter(item => item !== id) : [...current, id];
+    });
+  }, []);
+
+  const clearSelection = useCallback(() => setSelectedIds([]), []);
+
+  const addNode = useCallback((kind: NodeKind) => {
+    const node = createNode(kind, {
+      x: -viewport.pan.x / viewport.zoom + 280,
+      y: -viewport.pan.y / viewport.zoom + 180
+    });
     commit({ ...flow, nodes: [...flow.nodes, node] });
-    setSelectedNodeId(node.id);
-  }, [flow, commit, viewport.pan]);
+    setSelectedIds([node.id]);
+  }, [flow, commit, viewport]);
 
-  const deleteNode = useCallback((id: string) => {
-    commit(removeNode(flow, id));
-    setSelectedNodeId(current => (current === id ? null : current));
+  const deleteSelected = useCallback(() => {
+    if (selectedIds.length === 0) return;
+    commit(removeNodes(flow, selectedIds));
+    setSelectedIds([]);
+  }, [flow, commit, selectedIds]);
+
+  const renameNode = useCallback((id: string, label: string) => {
+    commit(updateNode(flow, id, n => ({ ...n, label })));
   }, [flow, commit]);
 
-  const patchNode: FlowContextValue['patchNode'] = useCallback((id, patch) => {
-    commit(updateNode(flow, id, n => ({ ...n, ...patch, config: patch.config ? { ...n.config, ...patch.config } : n.config })));
+  const setNodeData = useCallback((id: string, data: NodeData) => {
+    commit(updateNode(flow, id, n => ({ ...n, data })));
   }, [flow, commit]);
 
   const moveNodeBy = useCallback((id: string, delta: Position) => {
     replace(updateNode(flow, id, n => ({ ...n, position: { x: n.position.x + delta.x, y: n.position.y + delta.y } })));
   }, [flow, replace]);
 
-  const connect = useCallback((sourceId: string, targetId: string) => {
-    const next = connectNodes(flow, sourceId, targetId);
+  const commitPositions = useCallback(() => commit(flow), [flow, commit]);
+
+  const nudgeSelection = useCallback((delta: Position) => {
+    if (selectedIds.length === 0) return;
+    const ids = new Set(selectedIds);
+    commit({
+      ...flow,
+      nodes: flow.nodes.map(n => ids.has(n.id) ? { ...n, position: { x: n.position.x + delta.x, y: n.position.y + delta.y } } : n)
+    });
+  }, [flow, commit, selectedIds]);
+
+  const connect = useCallback((from: string, to: string, branch?: string) => {
+    const source = findNode(flow, from);
+    let named = branch;
+    if (!named && source?.data.kind === 'tool') {
+      const taken = new Set(outgoing(flow, from).map(edge => edge.branch));
+      named = taken.has('ok') ? 'error' : 'ok';
+    }
+    const next = connectNodes(flow, from, to, named);
     if (next !== flow) commit(next);
   }, [flow, commit]);
 
-  const disconnect = useCallback((sourceId: string, targetId: string) => {
-    commit(disconnectNodes(flow, sourceId, targetId));
-  }, [flow, commit]);
-
+  const disconnect = useCallback((edgeId: string) => commit(disconnectEdge(flow, edgeId)), [flow, commit]);
   const upstreamVariablesOf = useCallback((nodeId: string) => getUpstreamVariables(flow, nodeId), [flow]);
 
   const value = useMemo<FlowContextValue>(() => ({
-    flow, diagnostics, selectedNodeId, selectedNode, selectNode: setSelectedNodeId,
+    flow, diagnostics, selectedIds, selectedNode, selectNode, clearSelection,
     viewport, setPan, zoomIn, zoomOut, resetViewport, canUndo, canRedo, undo, redo,
-    loadFlow, addNode, deleteNode, patchNode, moveNodeBy, connect, disconnect, upstreamVariablesOf
+    loadFlow, addNode, deleteSelected, renameNode, setNodeData, moveNodeBy, commitPositions, nudgeSelection,
+    connect, disconnect, upstreamVariablesOf
   }), [
-    flow, diagnostics, selectedNodeId, selectedNode, viewport, setPan, zoomIn, zoomOut, resetViewport,
-    canUndo, canRedo, undo, redo, loadFlow, addNode, deleteNode, patchNode, moveNodeBy, connect, disconnect, upstreamVariablesOf
+    flow, diagnostics, selectedIds, selectedNode, selectNode, clearSelection,
+    viewport, setPan, zoomIn, zoomOut, resetViewport, canUndo, canRedo, undo, redo,
+    loadFlow, addNode, deleteSelected, renameNode, setNodeData, moveNodeBy, commitPositions, nudgeSelection,
+    connect, disconnect, upstreamVariablesOf
   ]);
 
   return <FlowContext.Provider value={value}>{children}</FlowContext.Provider>;

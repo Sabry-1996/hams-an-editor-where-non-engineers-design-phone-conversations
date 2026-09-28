@@ -1,100 +1,92 @@
-import type { FlowSchema } from '../types/flow';
-import { MUNSIT_DEFAULT_VOICE_ID } from '../config/munsit';
+import type { Edge, Flow, FlowNode, NodeKind } from '../types/flow';
 
-export const DEFAULT_FLOW: FlowSchema = {
-  version: '1.0.0',
-  name: 'Shifa Care Insurance & Coverage Verification',
+const tx = (ar: string, en: string) => ({ ar, en });
+
+const node = (id: string, x: number, y: number, label: string, data: FlowNode['data']): FlowNode => ({
+  id, position: { x, y }, label, data
+});
+
+const edge = (from: string, to: string, branch?: string): Edge => ({
+  id: `e_${from}_${to}${branch ? `_${branch}` : ''}`,
+  from,
+  to,
+  branch
+});
+
+/** Coverage-check call Reem builds: greet, verify member ID, ask the procedure, call coverage, branch, transfer when it gets messy. */
+export const DEFAULT_FLOW: Flow = {
+  schemaVersion: 1,
+  id: 'flow_coverage',
+  name: 'Shifa Care · Procedure coverage',
   nodes: [
-    {
-      id: 'node_start',
-      type: 'start',
-      label: 'بدء المكالمة (Start Call)',
-      position: { x: 50, y: 50 },
-      config: { bilingualMode: true, voiceId: MUNSIT_DEFAULT_VOICE_ID },
-      outputs: ['node_greeting']
-    },
-    {
-      id: 'node_greeting',
-      type: 'say',
-      label: 'ترحيب المريض (Greeting)',
-      position: { x: 350, y: 50 },
-      config: {
-        speechAr: 'أهلاً بك في مستشفيات شفاء كير. معك مساعدك الصوتي الذكي. كيف يمكنني مساعدتك اليوم؟',
-        speechEn: 'Welcome to Shifa Care Hospitals. Your AI voice assistant here. How can I help you today?',
-        bilingualMode: true
-      },
-      outputs: ['node_ask_member']
-    },
-    {
-      id: 'node_ask_member',
-      type: 'ask',
-      label: 'طلب رقم العضوية (Ask Member ID)',
-      position: { x: 650, y: 50 },
-      config: {
-        speechAr: 'من فضلك، زودني برقم بطاقة التأمين الطبي أو رقم الهوية.',
-        speechEn: 'Please provide your medical insurance ID or national ID number.',
-        expectedVariable: 'member_id',
-        variableType: 'string'
-      },
-      outputs: ['node_check_coverage']
-    },
-    {
-      id: 'node_check_coverage',
-      type: 'tool',
-      label: 'فحص التغطية (Verify Coverage API)',
-      position: { x: 980, y: 50 },
-      config: {
-        toolName: 'verify_insurance_api',
-        toolParams: '{"member_id": "{{member_id}}"}'
-      },
-      outputs: ['node_condition_coverage']
-    },
-    {
-      id: 'node_condition_coverage',
-      type: 'condition',
-      label: 'تقييم التغطية (Coverage Active?)',
-      position: { x: 1320, y: 50 },
-      config: { conditionExpression: "api_result.status == 'active'" },
-      outputs: ['node_approved_msg', 'node_transfer_agent']
-    },
-    {
-      id: 'node_approved_msg',
-      type: 'say',
-      label: 'تأكيد الموافقة (Approval Confirmed)',
-      position: { x: 1680, y: -40 },
-      config: {
-        speechAr: 'تأمينك نشط وصالح لتغطية الإجراء الطبي المطلوب. هل تحجز موعداً الآن؟',
-        speechEn: 'Your insurance is active and covers the procedure. Would you like to book an appointment now?'
-      },
-      outputs: ['node_end_success']
-    },
-    {
-      id: 'node_transfer_agent',
-      type: 'transfer',
-      label: 'تحويل لموظف (Transfer to Human)',
-      position: { x: 1680, y: 150 },
-      config: {
-        transferTarget: 'insurance_billing_department',
-        speechAr: 'عذراً، تحتاج مراجعة قسم المطالبات. جاري تحويلك لأحد المختصين لدينا.',
-        speechEn: 'Apologies, your claim requires review. Transferring you to our billing specialist.'
-      },
-      outputs: ['node_end_transfer']
-    },
-    {
-      id: 'node_end_success',
-      type: 'end',
-      label: 'إنهاء بنجاح (End Success)',
-      position: { x: 2020, y: -40 },
-      config: {},
-      outputs: []
-    },
-    {
-      id: 'node_end_transfer',
-      type: 'end',
-      label: 'إنهاء بتحويل (End Transfer)',
-      position: { x: 2020, y: 150 },
-      config: {},
-      outputs: []
-    }
+    node('start', 40, 80, 'Start', { kind: 'start' }),
+    node('greet', 320, 80, 'Greeting', {
+      kind: 'say',
+      text: tx(
+        'حياك الله في شفاء كير. أنا ريم، أساعدك تتأكد إذا الإجراء مغطى.',
+        'Welcome to Shifa Care. I am Reem, and I can check whether a procedure is covered.'
+      )
+    }),
+    node('ask_member', 620, 80, 'Member ID', {
+      kind: 'ask',
+      prompt: tx('ممكن رقم العضوية اللي على البطاقة، لو سمحت؟', 'What is the member ID printed on your card?'),
+      saveAs: 'member_id',
+      expect: 'digits',
+      onNoInput: 'reprompt',
+      maxRetries: 2
+    }),
+    node('ask_procedure', 920, 80, 'Procedure', {
+      kind: 'ask',
+      prompt: tx('وش الإجراء اللي تبي تتأكد منه؟ مثلاً أشعة رنين.', 'Which procedure should I check? For example, an MRI.'),
+      saveAs: 'procedure',
+      expect: 'free_text',
+      onNoInput: 'reprompt',
+      maxRetries: 1
+    }),
+    node('tool_coverage', 1220, 80, 'Coverage API', {
+      kind: 'tool',
+      name: 'check_coverage',
+      args: { member_id: '{{member_id}}', procedure: '{{procedure}}' },
+      saveAs: 'coverage_status'
+    }),
+    node('cond', 1520, 80, 'Covered?', {
+      kind: 'condition',
+      rules: [{ variable: 'coverage_status', op: 'eq', value: 'covered', branch: 'say_yes' }],
+      elseBranch: 'transfer'
+    }),
+    node('say_yes', 1820, 0, 'Covered', {
+      kind: 'say',
+      text: tx(
+        'الإجراء مغطى، وما يحتاج موافقة مسبقة. تبي أحجز لك موعد؟',
+        'That procedure is covered, and no prior approval is needed. Shall I book a visit?'
+      )
+    }),
+    node('transfer', 1820, 200, 'Human', {
+      kind: 'transfer',
+      queue: 'coverage_specialist',
+      whisper: tx(
+        'المريض يسأل عن تغطية إجراء والحالة غير واضحة.',
+        'Member is asking about procedure coverage and the result is not a clear yes.'
+      )
+    }),
+    node('end_ok', 2120, 0, 'End', {
+      kind: 'end',
+      text: tx('شكراً لاتصالك بشفاء كير.', 'Thank you for calling Shifa Care.')
+    }),
+    node('end_transfer', 2120, 200, 'End transfer', { kind: 'end' })
+  ],
+  edges: [
+    edge('start', 'greet'),
+    edge('greet', 'ask_member'),
+    edge('ask_member', 'ask_procedure'),
+    edge('ask_procedure', 'tool_coverage'),
+    edge('tool_coverage', 'cond', 'ok'),
+    edge('tool_coverage', 'transfer', 'error'),
+    edge('cond', 'say_yes'),
+    edge('cond', 'transfer'),
+    edge('say_yes', 'end_ok'),
+    edge('transfer', 'end_transfer')
   ]
 };
+
+export const NODE_KINDS: NodeKind[] = ['say', 'ask', 'condition', 'tool', 'transfer', 'end'];
