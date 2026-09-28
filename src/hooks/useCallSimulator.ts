@@ -4,6 +4,7 @@ import type { Flow, SpeechLang } from '../types/flow';
 import type { SimLogEntry, SimVariables, ToolBehavior } from '../types/simulator';
 import { findNode, findStartNode, outgoing } from '../utils/flowGraph';
 import { equalsRule, matchesAskChoice, scalarValue } from '../utils/ruleValue';
+import { digitsOf } from '../utils/spokenDigits';
 import { interpolateVariables, nowTime } from '../utils/template';
 import type { MunsitTTSController } from './useMunsitTTS';
 import { useLatest } from './useLatest';
@@ -17,8 +18,6 @@ interface UseCallSimulatorOptions {
 }
 
 const SILENCE_MS = 10_000;
-
-const digitsOf = (text: string) => (text.match(/[0-9٠-٩]+/g) ?? []).join('').replace(/[٠-٩]/g, d => String('٠١٢٣٤٥٦٧٨٩'.indexOf(d)));
 
 /** A yes/no answer, including the short forms callers actually say. `لا` is checked first so it does not hide inside another word. */
 const yesNoOf = (text: string): 'yes' | 'no' | null => {
@@ -222,7 +221,7 @@ export function useCallSimulator({ flow, speechLang, tts, voiceLabel, say }: Use
     if (!userText || !activeRef.current) return;
     clearSilence();
     log({ sender: 'user', text: userText });
-    const node = findNode(flowRef.current, currentNodeId);
+    const node = findNode(flowRef.current, nodeIdRef.current);
     if (!node || node.data.kind !== 'ask') {
       const edges = node ? outgoing(flowRef.current, node.id) : [];
       if (edges[0]) setTimeout(() => go(edges[0].to), 300);
@@ -255,12 +254,22 @@ export function useCallSimulator({ flow, speechLang, tts, voiceLabel, say }: Use
     log({ sender: 'system', text: sayRef.current('saved_var', { name: ask.saveAs, value: accepted }) });
     const next = outgoing(flowRef.current, node.id)[0];
     if (next) setTimeout(() => go(next.to), 400);
-  }, [currentNodeId, log, patchVariables, go, flowRef, sayRef, clearSilence]);
+  }, [log, patchVariables, go, flowRef, sayRef, clearSilence]);
+
+  const setCallerSpeaking = useCallback((speaking: boolean) => {
+    if (!activeRef.current) return;
+    if (speaking) {
+      clearSilence();
+      return;
+    }
+    const node = findNode(flowRef.current, nodeIdRef.current);
+    if (node?.data.kind === 'ask' && silenceTimer.current == null) armSilenceRef.current(node.id);
+  }, [clearSilence, flowRef]);
 
   return useMemo(() => ({
-    active, currentNodeId, variables, logs, toolBehavior, retries, setToolBehavior, start, stop, sendUserReply,
+    active, currentNodeId, variables, logs, toolBehavior, retries, setToolBehavior, start, stop, sendUserReply, setCallerSpeaking,
     logSystem: (text: string) => log({ sender: 'system', text })
-  }), [active, currentNodeId, variables, logs, toolBehavior, retries, start, stop, sendUserReply, log]);
+  }), [active, currentNodeId, variables, logs, toolBehavior, retries, start, stop, sendUserReply, setCallerSpeaking, log]);
 }
 
 export type CallSimulatorController = ReturnType<typeof useCallSimulator>;

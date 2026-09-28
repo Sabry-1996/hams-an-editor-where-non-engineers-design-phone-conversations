@@ -1,5 +1,7 @@
 import {
   MUNSIT_CURATED_VOICES,
+  MUNSIT_STT_MODEL,
+  MUNSIT_TRANSCRIBE_ENDPOINT,
   MUNSIT_TTS_ENDPOINT,
   MUNSIT_VOICES_ENDPOINT,
   MUNSIT_VOICE_SETTINGS
@@ -73,6 +75,28 @@ export async function synthesizeSpeech(apiKey: string, voiceId: string, text: st
   const blob = await response.blob();
   if (!blob.size) throw new MunsitApiError('Munsit API أعاد ملف صوتي فارغ.', response.status);
   return blob;
+}
+
+export async function transcribeAudio(apiKey: string, audio: Blob): Promise<string> {
+  const form = new FormData();
+  const ext = audio.type.includes('ogg') ? 'ogg' : audio.type.includes('mp4') ? 'm4a' : 'webm';
+  form.append('file', audio, `caller.${ext}`);
+  form.append('model', MUNSIT_STT_MODEL);
+  form.append('return_timestamps', 'false');
+  const response = await fetch(MUNSIT_TRANSCRIBE_ENDPOINT, {
+    method: 'POST',
+    headers: { 'x-api-key': apiKey },
+    body: form
+  });
+  if (!response.ok) {
+    const detail = await readErrorDetail(response);
+    throw new MunsitApiError(
+      `Munsit STT HTTP ${response.status}${detail ? ` – ${detail.slice(0, 200)}` : ''}${statusHint(response.status)}`,
+      response.status
+    );
+  }
+  const body = await response.json();
+  return String(body?.data?.transcription ?? body?.transcription ?? '').trim();
 }
 
 interface RawVoice {

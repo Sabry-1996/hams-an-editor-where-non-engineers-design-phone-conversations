@@ -1,4 +1,6 @@
-import { useEffect, useRef } from 'react';
+import { useCallback, useEffect, useRef } from 'react';
+import { useMunsitSTT } from '../../hooks/useMunsitSTT';
+import { useLatest } from '../../hooks/useLatest';
 import { PhoneCall } from 'lucide-react';
 import { useFlow } from '../../context/FlowContext';
 import { useSimulator } from '../../context/SimulatorContext';
@@ -15,8 +17,26 @@ export function TranscriptPanel() {
   const { t, lang } = useI18n();
   const { flow } = useFlow();
   const { simulator, tts } = useSimulator();
-  const { selectedVoiceId } = useVoiceSettings();
+  const { selectedVoiceId, apiKey } = useVoiceSettings();
   const scroller = useRef<HTMLDivElement>(null);
+  const speakingRef = useLatest(tts.isSpeaking);
+  const onSttError = useCallback((message: string, kind: 'mic' | 'empty' | 'api') => {
+    if (kind === 'mic') simulator.logSystem(t('mic_denied'));
+    else if (kind === 'empty') simulator.logSystem(t('stt_empty'));
+    else simulator.logSystem(`${t('stt_error')}: ${message}`);
+  }, [simulator, t]);
+  const stt = useMunsitSTT({
+    apiKey,
+    onFinal: simulator.sendUserReply,
+    onSpeaking: simulator.setCallerSpeaking,
+    onError: onSttError,
+    isMuted: () => speakingRef.current,
+  });
+  const { stopAll } = stt;
+
+  useEffect(() => {
+    if (!simulator.active) stopAll();
+  }, [simulator.active, stopAll]);
   const dotClass = tts.isSpeaking ? 'bg-brand animate-ping' : tts.status === 'error' ? 'bg-rose-500' : simulator.active ? 'bg-emerald-500' : 'bg-line';
 
   useEffect(() => {
@@ -57,7 +77,11 @@ export function TranscriptPanel() {
       <ReplyComposer
         disabled={!simulator.active}
         choices={simulator.active ? askChoiceButtons(flow, simulator.currentNodeId, lang).map(choice => choice.label) : []}
+        sttMode={stt.mode}
+        interim={stt.interim}
         onSend={simulator.sendUserReply}
+        onMicToggle={() => (stt.mode === 'recording' ? stt.stopRecording() : void stt.startRecording())}
+        onLiveToggle={() => (stt.mode === 'live' ? stt.stopLive() : void stt.startLive())}
       />
     </div>
   );

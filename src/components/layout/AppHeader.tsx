@@ -36,7 +36,7 @@ export function AppHeader({
         <img
           src="/hams-logo.png"
           alt="Hams.AI"
-          className="h-7 w-auto shrink-0"
+          className="h-7 w-auto shrink-0 mt-3"
         />
         <div className="hidden md:flex items-center min-w-0 border-s border-line ps-3">
           <input

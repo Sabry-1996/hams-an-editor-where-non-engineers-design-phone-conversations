@@ -7,7 +7,6 @@ import { Button } from "../ui/Button";
 import { NODE_STYLES } from "./nodeStyles";
 
 export const ADDABLE_KINDS: NodeKind[] = [
-  "start",
   "say",
   "ask",
   "condition",

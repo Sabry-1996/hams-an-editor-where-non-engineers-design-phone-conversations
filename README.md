@@ -51,7 +51,7 @@ Speech goes through the Vite proxy `/api/munsit` → `https://api.munsit.com`, s
 | lucide-react | Icons |
 | clsx | Class names on buttons |
 | Vitest | Tests for the graph and the `{{variable}}` template |
-| [Munsit](https://docs.munsit.com/) | Arabic voice API for the test call: synthesize with `faseeh` (`POST /text-to-speech/{model}`) and list voices (`GET /voices`) |
+| [Munsit](https://docs.munsit.com/) | Arabic voice API for the test call: synthesize with `faseeh` (`POST /text-to-speech/{model}`), list voices (`GET /voices`), and hear the caller with `munsit-en-ar` (`POST /audio/transcribe`, `WS /listen`) |
 
 ## Helpers
 
@@ -63,6 +63,7 @@ Speech goes through the Vite proxy `/api/munsit` → `https://api.munsit.com`, s
 | `useAnimatedNodes` | Glides steps to their new places (350ms) after a layout. A drag is not animated. |
 | `useCallSimulator` | Walks the call: caller text, current step, variables, retries, and the mock tool result (`ok`, `error`, `slow`). |
 | `useMunsitTTS` | Sends a line to Munsit and plays the audio. |
+| `useMunsitSTT` | Caller voice in the test call. The mic button records one reply and sends it to `POST /audio/transcribe`. The voice-call button streams 16 kHz audio to `WS /listen` and replies when Munsit marks the end of the caller's turn. |
 | `useMunsitVoices` | Loads the voice list. |
 | `useLatest` | Keeps a ref of the latest value so async callbacks do not go stale. |
 

@@ -7,6 +7,7 @@ const munsitProxy = {
     target: 'https://api.munsit.com',
     changeOrigin: true,
     secure: true,
+    ws: true,
     rewrite: (path: string) => path.replace(/^\/api\/munsit/, '')
   }
 };
