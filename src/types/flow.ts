@@ -9,7 +9,8 @@ export type CompareOp = 'eq' | 'neq' | 'gt' | 'lt' | 'exists';
 export type ConditionRule = {
   variable: string;
   op: CompareOp;
-  value?: string;
+  /** A single string, or Arabic and English when the caller picks this with a button (`eq`). */
+  value?: string | LocalizedText;
   /** Target node id. */
   branch: string;
 };

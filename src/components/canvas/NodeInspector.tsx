@@ -15,6 +15,7 @@ import { Field, inputClass } from "../ui/Field";
 import { Select } from "../ui/Select";
 import { LocalizedFields, SuggestText } from "./inspector/LocalizedFields";
 import { NODE_STYLES } from "./nodeStyles";
+import { asChoice, scalarValue } from "../../utils/ruleValue";
 
 const OPS: CompareOp[] = ["eq", "neq", "gt", "lt", "exists"];
 const EXPECTS: Array<{ value: ExpectKind; key: MessageKey }> = [
@@ -305,21 +306,55 @@ export function NodeInspector({ node }: { node: FlowNode }) {
                 <Select
                   ariaLabel={t("rules")}
                   value={rule.op}
-                  onValueChange={(op) =>
-                    updateRule(index, { op: op as CompareOp })
-                  }
+                  onValueChange={(op) => {
+                    const next = op as CompareOp;
+                    updateRule(index, {
+                      op: next,
+                      value: next === "eq" ? asChoice(rule.value) : scalarValue(rule.value),
+                    });
+                  }}
                   options={OPS.map((op) => ({ value: op, label: op }))}
                 />
-                {rule.op !== "exists" && (
+                {rule.op === "eq" ? (
+                  <div className="space-y-2">
+                    <label className="block space-y-1 text-[10px] font-medium text-ink-3">
+                      <span>{t("speech_ar")}</span>
+                      <input
+                        dir="rtl"
+                        className={inputClass}
+                        value={asChoice(rule.value).ar}
+                        onChange={(e) =>
+                          updateRule(index, {
+                            value: { ...asChoice(rule.value), ar: e.target.value },
+                          })
+                        }
+                      />
+                    </label>
+                    <label className="block space-y-1 text-[10px] font-medium text-ink-3">
+                      <span>{t("speech_en")}</span>
+                      <input
+                        dir="ltr"
+                        className={inputClass}
+                        value={asChoice(rule.value).en}
+                        onChange={(e) =>
+                          updateRule(index, {
+                            value: { ...asChoice(rule.value), en: e.target.value },
+                          })
+                        }
+                      />
+                    </label>
+                    <p className="text-[10px] leading-relaxed text-ink-3">{t("choice_hint")}</p>
+                  </div>
+                ) : rule.op !== "exists" ? (
                   <input
                     className={inputClass}
                     placeholder={t("value")}
-                    value={rule.value ?? ""}
+                    value={typeof rule.value === "string" ? rule.value : scalarValue(rule.value)}
                     onChange={(e) =>
                       updateRule(index, { value: e.target.value })
                     }
                   />
-                )}
+                ) : null}
                 <Select
                   ariaLabel={t("else_branch")}
                   value={rule.branch}
@@ -358,7 +393,7 @@ export function NodeInspector({ node }: { node: FlowNode }) {
                     {
                       variable: variables[0] ?? "",
                       op: "eq",
-                      value: "",
+                      value: { ar: "", en: "" },
                       branch: "",
                     },
                   ],

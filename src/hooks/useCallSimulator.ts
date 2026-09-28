@@ -3,6 +3,7 @@ import type { MessageKey } from '../i18n/messages';
 import type { Flow, SpeechLang } from '../types/flow';
 import type { SimLogEntry, SimVariables, ToolBehavior } from '../types/simulator';
 import { findNode, findStartNode, outgoing } from '../utils/flowGraph';
+import { equalsRule, matchesAskChoice, scalarValue } from '../utils/ruleValue';
 import { interpolateVariables, nowTime } from '../utils/template';
 import type { MunsitTTSController } from './useMunsitTTS';
 import { useLatest } from './useLatest';
@@ -126,10 +127,10 @@ export function useCallSimulator({ flow, speechLang, tts, voiceLabel, say }: Use
           const current = vars[rule.variable];
           const asText = current == null ? '' : String(current);
           if (rule.op === 'exists') return current != null && asText !== '';
-          if (rule.op === 'eq') return asText === (rule.value ?? '');
-          if (rule.op === 'neq') return asText !== (rule.value ?? '');
+          if (rule.op === 'eq') return equalsRule(asText, rule.value);
+          if (rule.op === 'neq') return asText !== scalarValue(rule.value);
           const num = Number(asText);
-          const target = Number(rule.value);
+          const target = Number(scalarValue(rule.value));
           if (rule.op === 'gt') return num > target;
           if (rule.op === 'lt') return num < target;
           return false;
@@ -231,7 +232,9 @@ export function useCallSimulator({ flow, speechLang, tts, voiceLabel, say }: Use
     const ask = node.data;
     let accepted = userText;
     let ok = true;
-    if (ask.expect === 'digits') {
+    if (matchesAskChoice(flowRef.current, node.id, userText)) {
+      accepted = userText.trim();
+    } else if (ask.expect === 'digits') {
       const digits = digitsOf(userText);
       ok = digits.length > 0;
       accepted = digits;

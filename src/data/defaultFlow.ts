@@ -67,7 +67,10 @@ export const DEFAULT_FLOW: Flow = {
     }),
     node('cond_book', 2120, 0, 'Book?', {
       kind: 'condition',
-      rules: [{ variable: 'book_visit', op: 'eq', value: 'yes', branch: 'say_booked' }],
+      rules: [
+        { variable: 'book_visit', op: 'eq', value: { ar: 'نعم', en: 'yes' }, branch: 'say_booked' },
+        { variable: 'book_visit', op: 'eq', value: { ar: 'لا', en: 'no' }, branch: 'say_skip' }
+      ],
       elseBranch: 'say_skip'
     }),
     node('say_booked', 2420, 0, 'Booked', {

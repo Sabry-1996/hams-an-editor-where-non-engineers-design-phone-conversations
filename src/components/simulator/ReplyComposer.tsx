@@ -5,10 +5,11 @@ import { Button } from "../ui/Button";
 
 interface ReplyComposerProps {
   disabled: boolean;
+  choices?: string[];
   onSend: (text: string) => void;
 }
 
-export function ReplyComposer({ disabled, onSend }: ReplyComposerProps) {
+export function ReplyComposer({ disabled, choices = [], onSend }: ReplyComposerProps) {
   const { t } = useI18n();
   const [draft, setDraft] = useState("");
 
@@ -22,8 +23,24 @@ export function ReplyComposer({ disabled, onSend }: ReplyComposerProps) {
   return (
     <form
       onSubmit={submit}
-      className="p-4 bg-white border-t border-line flex items-center gap-3"
+      className="bg-white border-t border-line"
     >
+      {choices.length > 0 && (
+        <div className="flex flex-wrap gap-2 px-4 pt-3">
+          {choices.map((choice) => (
+            <button
+              key={choice}
+              type="button"
+              disabled={disabled}
+              onClick={() => onSend(choice)}
+              className="rounded-full border border-brand/30 bg-brand-soft px-4 py-2 text-sm font-medium text-brand hover:bg-brand hover:text-white disabled:opacity-50"
+            >
+              {choice}
+            </button>
+          ))}
+        </div>
+      )}
+      <div className="p-4 flex items-center gap-3">
       <label className="sr-only" htmlFor="caller-reply">
         {t("user")}
       </label>
@@ -47,6 +64,7 @@ export function ReplyComposer({ disabled, onSend }: ReplyComposerProps) {
         <SendHorizontal className="w-4 h-4 rtl:-scale-x-100" />
         <span>{t("send")}</span>
       </Button>
+      </div>
     </form>
   );
 }

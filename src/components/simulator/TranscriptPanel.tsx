@@ -1,16 +1,19 @@
 import { useEffect, useRef } from 'react';
 import { PhoneCall } from 'lucide-react';
+import { useFlow } from '../../context/FlowContext';
 import { useSimulator } from '../../context/SimulatorContext';
 import { useVoiceSettings } from '../../context/VoiceSettingsContext';
 import { useI18n } from '../../i18n/I18nContext';
 import { cardClass } from '../ui/Field';
 import { VoiceBars } from '../ui/VoiceBars';
+import { askChoiceButtons } from '../../utils/ruleValue';
 import { ReplyComposer } from './ReplyComposer';
 import { TranscriptMessage } from './TranscriptMessage';
 import { TtsIndicatorBanner } from './TtsIndicatorBanner';
 
 export function TranscriptPanel() {
-  const { t } = useI18n();
+  const { t, lang } = useI18n();
+  const { flow } = useFlow();
   const { simulator, tts } = useSimulator();
   const { selectedVoiceId } = useVoiceSettings();
   const scroller = useRef<HTMLDivElement>(null);
@@ -51,7 +54,11 @@ export function TranscriptPanel() {
           </div>
         ) : simulator.logs.map((entry, index) => <TranscriptMessage key={index} entry={entry} />)}
       </div>
-      <ReplyComposer disabled={!simulator.active} onSend={simulator.sendUserReply} />
+      <ReplyComposer
+        disabled={!simulator.active}
+        choices={simulator.active ? askChoiceButtons(flow, simulator.currentNodeId, lang).map(choice => choice.label) : []}
+        onSend={simulator.sendUserReply}
+      />
     </div>
   );
 }
