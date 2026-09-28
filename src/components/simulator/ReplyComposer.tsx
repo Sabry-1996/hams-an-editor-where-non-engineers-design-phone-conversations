@@ -1,5 +1,7 @@
 import React, { useState } from 'react';
+import { SendHorizontal } from 'lucide-react';
 import { useI18n } from '../../i18n/I18nContext';
+import { Button } from '../ui/Button';
 
 interface ReplyComposerProps {
   disabled: boolean;
@@ -18,7 +20,7 @@ export function ReplyComposer({ disabled, onSend }: ReplyComposerProps) {
   };
 
   return (
-    <form onSubmit={submit} className="p-4 bg-slate-950 border-t border-slate-800 flex items-center gap-3">
+    <form onSubmit={submit} className="p-4 bg-white border-t border-line flex items-center gap-3">
       <label className="sr-only" htmlFor="caller-reply">{t('user')}</label>
       <input
         id="caller-reply"
@@ -27,12 +29,13 @@ export function ReplyComposer({ disabled, onSend }: ReplyComposerProps) {
         onChange={e => setDraft(e.target.value)}
         placeholder={disabled ? t('reply_disabled') : t('reply_placeholder')}
         disabled={disabled}
-        className="flex-1 bg-slate-900 border border-slate-800 rounded-xl px-4 py-3 text-xs text-slate-200 focus:border-teal-500 focus:outline-none disabled:opacity-50"
+        className="flex-1 bg-surface border border-line rounded-xl px-4 h-11 text-sm text-ink placeholder:text-ink-3 focus:border-brand focus:bg-white focus:outline-none focus:ring-2 focus:ring-brand/15 disabled:opacity-50"
         dir="auto"
       />
-      <button type="submit" disabled={disabled} className="px-5 py-3 bg-teal-600 hover:bg-teal-500 disabled:opacity-40 text-white rounded-xl text-xs font-bold">
-        {t('send')}
-      </button>
+      <Button type="submit" variant="primary" size="md" disabled={disabled} className="h-11 rounded-xl">
+        <SendHorizontal className="w-4 h-4 rtl:-scale-x-100" />
+        <span>{t('send')}</span>
+      </Button>
     </form>
   );
 }

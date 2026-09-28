@@ -47,12 +47,12 @@ export function SuggestText({ value, dir, variables, onChange }: SuggestTextProp
         onBlur={() => setTimeout(() => setQuery(null), 150)}
       />
       {query != null && (
-        <ul className="absolute z-30 mt-1 w-full bg-slate-950 border border-slate-700 rounded-lg max-h-36 overflow-y-auto" role="listbox">
+        <ul className="pop-in absolute z-30 mt-1 w-full bg-white border border-line rounded-lg shadow-card max-h-36 overflow-y-auto" role="listbox">
           {matches.length === 0 ? (
-            <li className="px-3 py-2 text-[11px] text-slate-500">{t('upstream_empty')}</li>
+            <li className="px-3 py-2 text-[11px] text-ink-3">{t('upstream_empty')}</li>
           ) : matches.map(name => (
             <li key={name}>
-              <button type="button" className="w-full text-start px-3 py-1.5 text-xs font-mono text-teal-300 hover:bg-slate-800" onMouseDown={e => { e.preventDefault(); insert(name); }}>
+              <button type="button" className="w-full text-start px-3 py-1.5 text-xs font-mono text-brand hover:bg-brand-soft" onMouseDown={e => { e.preventDefault(); insert(name); }}>
                 {`{{${name}}}`}
               </button>
             </li>
@@ -73,15 +73,15 @@ export function LocalizedFields({
   const { t } = useI18n();
   return (
     <div className="space-y-2">
-      <p className="text-[11px] text-slate-500">{t('side_by_side')}</p>
-      <p className="text-[10px] text-slate-500">{t('upstream_hint')}</p>
+      <p className="text-[11px] font-semibold uppercase tracking-wide text-ink-3">{t('side_by_side')}</p>
+      <p className="text-[10px] text-ink-3">{t('upstream_hint')}</p>
       <div className="grid grid-cols-1 gap-2">
-        <label className="text-xs text-slate-400">
-          {t('speech_ar')}
+        <label className="text-xs font-medium text-ink-2 block space-y-1">
+          <span>{t('speech_ar')}</span>
           <SuggestText dir="rtl" value={text.ar} variables={variables} onChange={ar => onChange({ ...text, ar })} />
         </label>
-        <label className="text-xs text-slate-400">
-          {t('speech_en')}
+        <label className="text-xs font-medium text-ink-2 block space-y-1">
+          <span>{t('speech_en')}</span>
           <SuggestText dir="ltr" value={text.en} variables={variables} onChange={en => onChange({ ...text, en })} />
         </label>
       </div>

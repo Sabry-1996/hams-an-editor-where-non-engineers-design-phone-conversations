@@ -9,9 +9,9 @@ interface FieldProps {
 export function Field({ label, hint, children }: FieldProps) {
   return (
     <div>
-      <label className="text-xs text-slate-400 mb-1 flex items-center justify-between">
+      <label className="text-xs font-medium text-ink-2 mb-1 flex items-center justify-between">
         <span>{label}</span>
-        {hint && <span className="text-[10px]">{hint}</span>}
+        {hint && <span className="text-[10px] font-normal">{hint}</span>}
       </label>
       {children}
     </div>
@@ -19,7 +19,9 @@ export function Field({ label, hint, children }: FieldProps) {
 }
 
 export const inputClass =
-  'w-full bg-slate-950 border border-slate-800 rounded-lg px-3 py-2 text-xs text-slate-200 focus:border-teal-500 focus:outline-none';
+  'w-full bg-white border border-line rounded-lg px-3 py-2 text-xs text-ink placeholder:text-ink-3 focus:border-brand focus:outline-none focus:ring-2 focus:ring-brand/15';
 
 export const textareaClass =
-  'w-full bg-slate-950 border border-slate-800 rounded-lg p-2.5 text-xs text-slate-200 focus:border-teal-500 focus:outline-none leading-relaxed';
+  'w-full bg-white border border-line rounded-lg p-2.5 text-xs text-ink placeholder:text-ink-3 focus:border-brand focus:outline-none focus:ring-2 focus:ring-brand/15 leading-relaxed';
+
+export const cardClass = 'bg-white border border-line rounded-2xl shadow-card';

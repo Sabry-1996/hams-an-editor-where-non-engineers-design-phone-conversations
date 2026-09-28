@@ -8,16 +8,16 @@ interface ToolBehaviorSelectorProps {
 }
 
 const OPTIONS: Array<{ value: ToolBehavior; activeClass: string }> = [
-  { value: 'ok', activeClass: 'bg-emerald-600 text-white border-emerald-500' },
-  { value: 'slow', activeClass: 'bg-amber-600 text-white border-amber-500' },
-  { value: 'error', activeClass: 'bg-rose-600 text-white border-rose-500' }
+  { value: 'ok', activeClass: 'bg-emerald-600 text-white border-emerald-600' },
+  { value: 'slow', activeClass: 'bg-amber-500 text-white border-amber-500' },
+  { value: 'error', activeClass: 'bg-rose-600 text-white border-rose-600' }
 ];
 
 export const ToolBehaviorSelector = React.memo(function ToolBehaviorSelector({ value, onChange }: ToolBehaviorSelectorProps) {
   const { t } = useI18n();
   return (
     <div>
-      <p className="text-xs text-slate-400 mb-1">{t('tool_behavior')}</p>
+      <p className="text-xs font-medium text-ink-2 mb-1">{t('tool_behavior')}</p>
       <div className="grid grid-cols-3 gap-2" role="radiogroup" aria-label={t('tool_behavior')}>
         {OPTIONS.map(opt => (
           <button
@@ -26,7 +26,9 @@ export const ToolBehaviorSelector = React.memo(function ToolBehaviorSelector({ v
             role="radio"
             aria-checked={value === opt.value}
             onClick={() => onChange(opt.value)}
-            className={`py-2 rounded-xl text-xs font-semibold border ${value === opt.value ? opt.activeClass : 'bg-slate-950 text-slate-400 border-slate-800'}`}
+            className={`h-9 rounded-xl text-xs font-semibold border transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand/40 ${
+              value === opt.value ? opt.activeClass : 'bg-white text-ink-2 border-line hover:bg-surface'
+            }`}
           >
             {t(opt.value)}
           </button>

@@ -1,8 +1,10 @@
 import React from 'react';
-import { AlertTriangle, XCircle } from 'lucide-react';
+import { AlertTriangle, ArrowUpRight, XCircle } from 'lucide-react';
 import { useI18n } from '../../i18n/I18nContext';
 import type { MessageKey } from '../../i18n/messages';
 import type { Diagnostic } from '../../types/flow';
+import { Button } from '../ui/Button';
+import { cardClass } from '../ui/Field';
 
 interface DiagnosticCardProps {
   diagnostic: Diagnostic;
@@ -14,20 +16,23 @@ export const DiagnosticCard = React.memo(function DiagnosticCard({ diagnostic, o
   const isError = diagnostic.level === 'error';
   const key = `diag_${diagnostic.code}` as MessageKey;
   return (
-    <li className="bg-slate-900 border border-slate-800 rounded-2xl p-5 flex items-start gap-4">
-      {isError ? <XCircle className="w-5 h-5 text-rose-400 mt-0.5" /> : <AlertTriangle className="w-5 h-5 text-amber-400 mt-0.5" />}
-      <div className="flex-1">
+    <li className={`${cardClass} p-5 flex items-start gap-4`}>
+      <span className={`p-2 rounded-xl border shrink-0 ${isError ? 'bg-rose-50 border-rose-200 text-rose-600' : 'bg-amber-50 border-amber-200 text-amber-600'}`}>
+        {isError ? <XCircle className="w-5 h-5" /> : <AlertTriangle className="w-5 h-5" />}
+      </span>
+      <div className="flex-1 min-w-0">
         <div className="flex items-center justify-between mb-1 gap-3">
-          <span className={`text-xs font-bold ${isError ? 'text-rose-400' : 'text-amber-400'}`}>
+          <span className={`text-xs font-semibold ${isError ? 'text-rose-600' : 'text-amber-600'}`}>
             {isError ? t('level_error') : t('level_warning')}
           </span>
           {diagnostic.nodeId && (
-            <button type="button" onClick={() => onGoToNode(diagnostic.nodeId!)} className="text-xs text-teal-400 hover:underline">
-              {t('go_to_node')}
-            </button>
+            <Button variant="ghost" size="sm" onClick={() => onGoToNode(diagnostic.nodeId!)} className="text-brand hover:bg-brand-soft">
+              <span>{t('go_to_node')}</span>
+              <ArrowUpRight className="w-3.5 h-3.5 rtl:-scale-x-100" />
+            </Button>
           )}
         </div>
-        <p className="text-sm text-slate-200">{t(key, diagnostic.params)}</p>
+        <p className="text-sm text-ink leading-relaxed">{t(key, diagnostic.params)}</p>
       </div>
     </li>
   );

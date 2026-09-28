@@ -1,9 +1,43 @@
 @import "tailwindcss";
 
+/* Hams.AI palette, taken from hams.ai: ink text, hairline borders, indigo primary. */
+@theme {
+  --color-brand: #3132a9;
+  --color-brand-dark: #092952;
+  --color-brand-soft: #eef0ff;
+  --color-ink: #030201;
+  --color-ink-2: #44464b;
+  --color-ink-3: #8a8d93;
+  --color-line: #e0e1e4;
+  --color-line-soft: #f0f0f0;
+  --color-surface: #f9f9f9;
+  --shadow-card: 0px 3px 34px 0px rgba(3, 2, 1, 0.06);
+}
+
 html, body, #root {
   height: 100%;
   margin: 0;
-  background-color: #020617;
+  background-color: #ffffff;
+  color: #030201;
+}
+
+@keyframes fade-in { from { opacity: 0; } to { opacity: 1; } }
+.fade-in { animation: fade-in 140ms ease-out; }
+
+@keyframes content-in {
+  from { opacity: 0; transform: translateY(6px); }
+  to { opacity: 1; transform: none; }
+}
+.content-in { animation: content-in 200ms ease-out both; }
+
+@keyframes pop-in {
+  from { opacity: 0; transform: scale(0.96); }
+  to { opacity: 1; transform: none; }
+}
+.pop-in { animation: pop-in 160ms ease-out both; }
+
+@media (prefers-reduced-motion: reduce) {
+  .content-in, .pop-in, .fade-in { animation: none; }
 }
 
 @keyframes voice-bar {
@@ -16,7 +50,7 @@ html, body, #root {
   width: 3px;
   height: 14px;
   border-radius: 9999px;
-  background-color: #2dd4bf;
+  background-color: #3132a9;
   transform-origin: center;
   animation: voice-bar 0.9s ease-in-out infinite;
 }
@@ -25,3 +59,9 @@ html, body, #root {
 .voice-bar:nth-child(3) { animation-delay: 0.24s; }
 .voice-bar:nth-child(4) { animation-delay: 0.36s; }
 .voice-bar:nth-child(5) { animation-delay: 0.48s; }
+
+/* React Flow chrome on the light theme */
+.react-flow__attribution { background: transparent; color: #8a8d93; }
+.react-flow__edge-path { stroke-linecap: round; }
+.react-flow .react-flow__node.draggable { cursor: pointer; }
+.react-flow .react-flow__node.draggable.dragging { cursor: grabbing; }

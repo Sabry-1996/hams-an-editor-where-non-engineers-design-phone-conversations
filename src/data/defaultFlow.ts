@@ -17,7 +17,7 @@ const edge = (from: string, to: string, branch?: string): Edge => ({
 export const DEFAULT_FLOW: Flow = {
   schemaVersion: 1,
   id: 'flow_coverage',
-  name: 'Shifa Care · Procedure coverage',
+  name: 'شفاء كير',
   nodes: [
     node('start', 40, 80, 'Start', { kind: 'start' }),
     node('greet', 320, 80, 'Greeting', {

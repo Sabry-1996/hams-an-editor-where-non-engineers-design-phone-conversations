@@ -2,6 +2,8 @@ import { PhoneCall, Square } from 'lucide-react';
 import { useSimulator } from '../../context/SimulatorContext';
 import { useVoiceSettings } from '../../context/VoiceSettingsContext';
 import { useI18n } from '../../i18n/I18nContext';
+import { Button } from '../ui/Button';
+import { cardClass } from '../ui/Field';
 import { ToolBehaviorSelector } from './ToolBehaviorSelector';
 import { VoiceSettingsCard } from './VoiceSettingsCard';
 
@@ -11,10 +13,10 @@ export function CallControlPanel() {
   const { apiKey, setApiKey, voices, voicesLoadState, selectedVoiceId, setSelectedVoiceId } = useVoiceSettings();
 
   return (
-    <div className="bg-slate-900 border border-slate-800 rounded-2xl p-5">
+    <div className={`${cardClass} p-5`}>
       <div className="flex items-center justify-between mb-4">
-        <h2 className="text-sm font-bold text-slate-200">{t('sim_title')}</h2>
-        <span className={`px-2.5 py-0.5 rounded-full text-xs ${simulator.active ? 'bg-emerald-500/20 text-emerald-400' : 'bg-slate-800 text-slate-400'}`}>
+        <h2 className="text-sm font-semibold text-ink">{t('sim_title')}</h2>
+        <span className={`px-2.5 py-0.5 rounded-full text-xs font-medium border ${simulator.active ? 'bg-emerald-50 text-emerald-700 border-emerald-200' : 'bg-surface text-ink-2 border-line'}`}>
           {simulator.active ? t('sim_on') : t('sim_off')}
         </span>
       </div>
@@ -29,13 +31,13 @@ export function CallControlPanel() {
         />
         <ToolBehaviorSelector value={simulator.toolBehavior} onChange={simulator.setToolBehavior} />
         {!simulator.active ? (
-          <button type="button" onClick={simulator.start} className="w-full py-3 bg-teal-600 hover:bg-teal-500 text-white rounded-xl text-sm font-bold flex items-center justify-center gap-2">
+          <Button variant="primary" size="md" onClick={simulator.start} className="w-full h-11 rounded-xl font-semibold">
             <PhoneCall className="w-4 h-4" /><span>{t('start_call')}</span>
-          </button>
+          </Button>
         ) : (
-          <button type="button" onClick={simulator.stop} className="w-full py-3 bg-rose-600 hover:bg-rose-500 text-white rounded-xl text-sm font-bold flex items-center justify-center gap-2">
+          <Button size="md" onClick={simulator.stop} className="w-full h-11 rounded-xl font-semibold bg-rose-600 text-white border-rose-600 hover:bg-rose-700">
             <Square className="w-4 h-4" /><span>{t('stop_call')}</span>
-          </button>
+          </Button>
         )}
       </div>
     </div>

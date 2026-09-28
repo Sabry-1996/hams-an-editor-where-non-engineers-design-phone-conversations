@@ -5,7 +5,7 @@ export type LayoutDirection = 'horizontal' | 'vertical';
 export interface NodeSize { width: number; height: number }
 
 export const DEFAULT_NODE_SIZE: NodeSize = { width: 240, height: 112 };
-const MAIN_GAP = 96;
+export const MAIN_GAP = 96;
 const CROSS_GAP = 40;
 const MARGIN = 40;
 

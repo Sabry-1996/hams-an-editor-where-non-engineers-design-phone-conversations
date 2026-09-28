@@ -17,7 +17,7 @@ export const TtsIndicatorBanner = React.memo(function TtsIndicatorBanner({ statu
   if (!isSpeaking && status !== 'error') return null;
   const isError = status === 'error';
   return (
-    <div className={`mx-6 mt-4 flex items-center justify-between gap-4 rounded-xl border px-4 py-2.5 text-xs ${isError ? 'bg-rose-950/40 border-rose-500/40 text-rose-200' : 'bg-teal-950/40 border-teal-500/40 text-teal-100'}`}>
+    <div className={`mx-6 mt-4 flex items-center justify-between gap-4 rounded-xl border px-4 py-2.5 text-xs ${isError ? 'bg-rose-50 border-rose-200 text-rose-700' : 'bg-brand-soft border-indigo-100 text-brand'}`}>
       <div className="flex items-center gap-3">
         {isError ? <AlertOctagon className="w-4 h-4" /> : <Volume2 className="w-4 h-4" />}
         <div>
