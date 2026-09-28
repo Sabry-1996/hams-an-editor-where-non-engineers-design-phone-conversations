@@ -222,6 +222,7 @@ export function FlowCanvas({ onQuickCall }: { onQuickCall: () => void }) {
         onPaneClick={onPaneClick}
         onMoveStart={hidePalette}
         colorMode="light"
+        proOptions={{ hideAttribution: true }}
         fitView
         fitViewOptions={{ padding: 0.2, maxZoom: 1 }}
         minZoom={0.3}

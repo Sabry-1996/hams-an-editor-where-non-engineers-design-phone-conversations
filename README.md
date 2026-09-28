@@ -10,6 +10,12 @@ Browser editor for Shifa Care (شفاء كير). Reem designs a Hams.AI phone ca
 | --- | --- |
 | ![Step menu with icon, name, and description](docs/screenshots/add-step-menu.png) | ![Step details panel](docs/screenshots/step-details.png) |
 
+| Test call with a Munsit voice | Notes: the call is safe |
+| --- | --- |
+| ![Test call screen](docs/screenshots/test-call.png) | ![Notes screen with no issues](docs/screenshots/notes-clean.png) |
+
+![Notes screen showing a tool step that needs an ok and an error exit](docs/screenshots/notes-issue.png)
+
 The call is a JSON document with `schemaVersion: 1`. Each step is a node: `start`, `say`, `ask`, `condition`, `tool`, `transfer`, or `end`. Lines between steps are edges, and a tool edge can be `ok` or `error`.
 
 ## Run

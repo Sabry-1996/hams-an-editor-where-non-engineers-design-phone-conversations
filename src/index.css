@@ -61,7 +61,6 @@ html, body, #root {
 .voice-bar:nth-child(5) { animation-delay: 0.48s; }
 
 /* React Flow chrome on the light theme */
-.react-flow__attribution { background: transparent; color: #8a8d93; }
 .react-flow__edge-path { stroke-linecap: round; }
 .react-flow .react-flow__node.draggable { cursor: pointer; }
 .react-flow .react-flow__node.draggable.dragging { cursor: grabbing; }
