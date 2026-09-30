@@ -1,7 +1,7 @@
 import { Suspense, lazy, useCallback, useState } from "react";
 import { useFlow } from "../../context/FlowContext";
 import { useI18n } from "../../i18n/I18nContext";
-import type { EditorTab } from "../../types/flow";
+import type { CanvasViewMode, EditorTab } from "../../types/flow";
 import {
   downloadFlowJson,
   parseFlowJson,
@@ -18,6 +18,7 @@ const DiagnosticsView = lazy(() => import("../diagnostics/DiagnosticsView"));
 export function AppShell() {
   const { t, dir } = useI18n();
   const [activeTab, setActiveTab] = useState<EditorTab>("canvas");
+  const [canvasViewMode, setCanvasViewMode] = useState<CanvasViewMode>("graph");
   const [importError, setImportError] = useState<string | null>(null);
   const { flow, diagnostics, loadFlow } = useFlow();
   const handleExport = useCallback(() => downloadFlowJson(flow), [flow]);
@@ -61,7 +62,13 @@ export function AppShell() {
       />
       <div className="flex flex-1 overflow-hidden relative">
         <Suspense fallback={<LoadingView />}>
-          {activeTab === "canvas" && <CanvasView onNavigate={setActiveTab} />}
+          {activeTab === "canvas" && (
+            <CanvasView
+              onNavigate={setActiveTab}
+              viewMode={canvasViewMode}
+              onViewModeChange={setCanvasViewMode}
+            />
+          )}
           {activeTab === "simulator" && <SimulatorView />}
           {activeTab === "diagnostics" && (
             <DiagnosticsView onNavigate={setActiveTab} />

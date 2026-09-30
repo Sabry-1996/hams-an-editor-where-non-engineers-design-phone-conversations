@@ -65,6 +65,7 @@ Speech goes through the Vite proxy `/api/munsit` → `https://api.munsit.com`, s
 | `useMunsitTTS` | Sends a line to Munsit and plays the audio. |
 | `useMunsitSTT` | Caller voice in the test call. The mic button records one reply and sends it to `POST /audio/transcribe`. The voice-call button streams 16 kHz audio to `WS /listen` and replies when Munsit marks the end of the caller's turn. |
 | `useMunsitVoices` | Loads the voice list. |
+| `useLinePreview` | Plays one script line in the chosen Munsit voice. A new line cancels the one before, and lines already heard replay from memory. |
 | `useLatest` | Keeps a ref of the latest value so async callbacks do not go stale. |
 
 ### Graph and files — `src/utils`
@@ -78,6 +79,7 @@ Speech goes through the Vite proxy `/api/munsit` → `https://api.munsit.com`, s
 | `findNode` / `findStartNode` / `outgoing` / `incoming` | Look up steps and lines. |
 | `parseFlowJson` / `downloadFlowJson` / `readFileAsText` | Import and export. An unknown `schemaVersion` is rejected. |
 | `interpolateVariables` / `toPlaceholder` | Fill `{{name}}` during a test call. |
+| `buildCallScript` | Turns the flow into a readable script, using the same exits as the test call. Paths that meet again are shown side by side and then rejoin. Paths that never meet keep the main one (tool `ok`, first rule) on the timeline and fold the others away. Loops and shared steps become "goes to" jumps. |
 
 ### Speech — `src/services` and `src/config`
 
@@ -100,7 +102,8 @@ Speech goes through the Vite proxy `/api/munsit` → `https://api.munsit.com`, s
 
 ## Screens
 
-- **Board** (`src/components/canvas`) — steps, the control card, the add-step menu, and the details panel.
+- **Board** (`src/components/canvas`) — steps, the control card, the add-step menu, and the details panel. The Graph / Script switch at the top swaps the map for the script.
+- **Script** (`src/components/script`) — the call as a vertical timeline: lines Reem says (with a play button), system calls, and decisions whose other paths open as accordions. Click a step to edit it in the details panel.
 - **Test call** (`src/components/simulator`) — type what the caller says, hear Reem, see variables.
 - **Notes** (`src/components/diagnostics`) — the check list. A note can jump back to its step.
 

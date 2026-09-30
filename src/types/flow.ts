@@ -69,5 +69,7 @@ export type Position = { x: number; y: number };
 export type UiLang = 'ar' | 'en';
 export type SpeechLang = 'ar' | 'en';
 export type EditorTab = 'canvas' | 'simulator' | 'diagnostics';
+/** How the canvas tab shows the call: the node map, or the script Reem reads top to bottom. */
+export type CanvasViewMode = 'graph' | 'script';
 
 export const emptyText = (): LocalizedText => ({ ar: '', en: '' });
