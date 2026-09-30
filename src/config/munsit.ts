@@ -29,7 +29,7 @@ export function munsitListenUrl(apiKey: string): string {
 export const MUNSIT_DEFAULT_VOICE_ID = 'ybQaNl0nzt9TjN3Oh1zzyNgp';
 
 export const MUNSIT_DEV_API_KEY =
-  'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJrZXlfaWQiOiIzYjkzYzA3NS1kYzkwLTRhNDAtODk0My1iNmIyYjY4OWMzMjYiLCJpYXQiOjE3OTA1OTU2NjIsImV4cCI6MjEwNTk1NTY2Mn0.I1gg5vi04_Megnq-N4zOvYWvQkU7XGNkaVn-Ib4sOxs';
+  'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJrZXlfaWQiOiJkNmI4Yzg3ZC04ZTcwLTQzOTgtOGI0Ni05OTExNDQwNGQ4OTQiLCJpYXQiOjE3OTA3NjgxNDAsImV4cCI6MjEwNjEyODE0MH0.sRjX2ig1wa3LUbt1hESydcuWu-tvVHRZpADUG_bPI7M';
 
 export const MUNSIT_VOICE_SETTINGS = {
   stability: 0.75,
